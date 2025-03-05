@@ -3,6 +3,10 @@ import arcade
 
 PLAYER_MOVEMENT_SPEED = 5
 """Lateral speed of the player, in pixels per frame."""
+PLAYER_GRAVITY = 1
+"""Gravity applied to the player, in pixels per frame²."""
+PLAYER_JUMP_SPEED = 18
+"""Instant vertical speed for jumping, in pixels per frame."""
 
 
 class GameView(arcade.View):
@@ -11,6 +15,13 @@ class GameView(arcade.View):
 
     player_sprite: arcade.Sprite
     player_sprite_list: arcade.SpriteList[arcade.Sprite]
+    wall_list: arcade.SpriteList[arcade.Sprite]
+
+    physics_engine: arcade.PhysicsEnginePlatformer
+
+    camera : arcade.camera.Camera2D
+
+
 
     def __init__(self) -> None:
         # Magical incantion: initialize the Arcade view
@@ -18,6 +29,10 @@ class GameView(arcade.View):
 
         # Choose a nice comfy background color
         self.background_color = arcade.csscolor.CORNFLOWER_BLUE
+
+        self.wall_list = arcade.SpriteList(use_spatial_hash = True)
+        self.coin_list = arcade.SpriteList(use_spatial_hash=True)
+
 
         # Setup our game
         self.setup()
@@ -33,9 +48,6 @@ class GameView(arcade.View):
         self.player_sprite_list = arcade.SpriteList()
         self.player_sprite_list.append(self.player_sprite)
 
-        self.wall_list = arcade.SpriteList(use_spatial_hash=True)
-         
-
 
         for x in range(0, 1280, 64):
             grass = arcade.Sprite(":resources:images/tiles/grassMid.png", scale=0.5)
@@ -44,12 +56,28 @@ class GameView(arcade.View):
             self.wall_list.append(grass)
 
         for x in [256, 512, 768]:
-            box = arcade.Sprite(":resources:images/tiles/boxCrate_double.png", scale=0.5)
-            box.center_x = x
-            box.center_y = 96
-            self.wall_list.append(box)
+            wall = arcade.Sprite(":resources:images/tiles/boxCrate_double.png", scale=0.5)
+            wall.center_x = x
+            wall.center_y = 96
+            self.wall_list.append(wall)
+
+        for x in range(128,1250,256):
+            coin = arcade.Sprite(":resources:images/items/coinGold.png",scale= 0.5)
+            coin.center_x = x
+            coin.center_y = 96
+            self.coin_list.append(coin)
 
         
+        
+
+        self.physics_engine = arcade.PhysicsEnginePlatformer(
+            self.player_sprite,
+            walls=self.wall_list,
+            gravity_constant=PLAYER_GRAVITY
+        )
+
+        self.camera = arcade.camera.Camera2D()
+
 
 
     def on_update(self, delta_time: float) -> None:
@@ -57,15 +85,23 @@ class GameView(arcade.View):
 
         This is where in-world time "advances", or "ticks".
         """
-        self.player_sprite.center_x += self.player_sprite.change_x
+        self.physics_engine.update()
+
+        #waiting for a new version of mypy
+        self.camera.position = self.player_sprite.position #type ignore
+        
+        collided_coins = arcade.check_for_collision_with_list(self.player_sprite, self.coin_list)
+        for coin in collided_coins:
+            coin.remove_from_sprite_lists()
 
 
     def on_draw(self) -> None:
         """Render the screen."""
         self.clear() # always start with self.clear()
-        self.player_sprite_list.draw()
-        self.wall_list.draw()
-
+        with self.camera.activate():
+            self.player_sprite_list.draw()
+            self.wall_list.draw()
+            self.coin_list.draw()
 
 
 
@@ -78,6 +114,14 @@ class GameView(arcade.View):
             case arcade.key.LEFT:
                 # start moving to the left
                 self.player_sprite.change_x = -PLAYER_MOVEMENT_SPEED
+            case arcade.key.UP:
+                # jump by giving an initial vertical speed
+                self.player_sprite.change_y = PLAYER_JUMP_SPEED
+            case arcade.key.ESCAPE:
+                # restart the game
+                self.setup()
+
+
 
     def on_key_release(self, key: int, modifiers: int) -> None:
         """Called when the user releases a key on the keyboard."""
