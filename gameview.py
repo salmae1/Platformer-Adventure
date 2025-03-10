@@ -33,6 +33,8 @@ class GameView(arcade.View):
         self.wall_list = arcade.SpriteList(use_spatial_hash = True)
         self.coin_list = arcade.SpriteList(use_spatial_hash=True)
 
+        self.collect_coin_sound = arcade.load_sound(":resources:sounds/coin1.wav", streaming=False)
+        self.jump_sound = arcade.load_sound(":resources:sounds/jump1.wav", streaming= False)
 
         # Setup our game
         self.setup()
@@ -78,6 +80,7 @@ class GameView(arcade.View):
 
         self.camera = arcade.camera.Camera2D()
 
+        
 
 
     def on_update(self, delta_time: float) -> None:
@@ -90,9 +93,10 @@ class GameView(arcade.View):
         #waiting for a new version of mypy
         self.camera.position = self.player_sprite.position #type ignore
         
-        collided_coins = arcade.check_for_collision_with_list(self.player_sprite, self.coin_list)
-        for coin in collided_coins:
+        coin_hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.coin_list)
+        for coin in coin_hit_list:
             coin.remove_from_sprite_lists()
+            arcade.play_sound(self.collect_coin_sound, loop=False)
 
 
     def on_draw(self) -> None:
@@ -117,6 +121,7 @@ class GameView(arcade.View):
             case arcade.key.UP:
                 # jump by giving an initial vertical speed
                 self.player_sprite.change_y = PLAYER_JUMP_SPEED
+                arcade.play_sound(self.jump_sound, loop= False)
             case arcade.key.ESCAPE:
                 # restart the game
                 self.setup()
@@ -129,6 +134,18 @@ class GameView(arcade.View):
             case arcade.key.RIGHT | arcade.key.LEFT:
                 # stop lateral movement
                 self.player_sprite.change_x = 0
+
+    def read_decode(self, file_path):
+
+        with open(file_path, "r", encoding="utf-8", newline='') as f:
+            lines = f.readlines()
+        
+        width = height = 0
+        for line in lines:
+            if line.startswith("width:"):
+
+
+
 
 
 
