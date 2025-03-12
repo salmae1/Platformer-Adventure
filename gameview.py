@@ -7,6 +7,17 @@ PLAYER_GRAVITY = 1
 """Gravity applied to the player, in pixels per frame²."""
 PLAYER_JUMP_SPEED = 18
 """Instant vertical speed for jumping, in pixels per frame."""
+ASSETS = {
+    "=": ":resources:/images/tiles/grassMid.png",
+    "-": ":resources:/images/tiles/grassHalf_mid.png",
+    "x": ":resources:/images/tiles/boxCrate_double.png",
+    "*": ":resources:/images/items/coinGold.png",
+    "o": ":resources:/images/enemies/slimeBlue.png",
+    "£": ":resources:/images/tiles/lava.png",
+    "S": ":resources:/images/animated_characters/female_person/femalePerson_idle.png"
+}
+
+
 
 
 class GameView(arcade.View):
@@ -31,13 +42,51 @@ class GameView(arcade.View):
         self.background_color = arcade.csscolor.CORNFLOWER_BLUE
 
         self.wall_list = arcade.SpriteList(use_spatial_hash = True)
-        self.coin_list = arcade.SpriteList(use_spatial_hash=True)
+        self.coin_list = arcade.SpriteList(use_spatial_hash = True)
 
         self.collect_coin_sound = arcade.load_sound(":resources:sounds/coin1.wav", streaming=False)
         self.jump_sound = arcade.load_sound(":resources:sounds/jump1.wav", streaming= False)
 
+
         # Setup our game
         self.setup()
+
+
+
+    def read_map(self, file_path):
+        """read and analyse the map."""
+    
+        with open(file_path, 'r', encoding="utf-8", newline='') as f:
+            lines = f.readlines()
+        
+
+        width = height = 0
+        index = 0
+
+        # Configuration
+        while index < len(lines) and lines[index].strip()!= "---":
+            key, value = lines[index].strip().split(": ")
+            if key == "width":
+                width = int(value)
+            elif key == "height":
+                height = int(value)
+            index += 1
+        
+
+        index += 1
+        map_data = []
+
+        # Characters
+        while index < len(lines) and lines[index].strip() != "---":
+            map_data.append(lines[index].rstrip("\n"))
+            index += 1
+        
+
+        return width, height, map_data
+    
+
+        
+
 
     def setup(self) -> None:
         """Set up the game here."""
@@ -50,24 +99,40 @@ class GameView(arcade.View):
         self.player_sprite_list = arcade.SpriteList()
         self.player_sprite_list.append(self.player_sprite)
 
+        width, height, map_data = self.read_map("maps/map1.txt")
 
-        for x in range(0, 1280, 64):
-            grass = arcade.Sprite(":resources:images/tiles/grassMid.png", scale=0.5)
-            grass.center_x= x
-            grass.center_y= 32
-            self.wall_list.append(grass)
 
-        for x in [256, 512, 768]:
-            wall = arcade.Sprite(":resources:images/tiles/boxCrate_double.png", scale=0.5)
-            wall.center_x = x
-            wall.center_y = 96
-            self.wall_list.append(wall)
+        # Choix par convention
+        tile_size = 64
 
-        for x in range(128,1250,256):
-            coin = arcade.Sprite(":resources:images/items/coinGold.png",scale= 0.5)
-            coin.center_x = x
-            coin.center_y = 96
-            self.coin_list.append(coin)
+        for y, row in enumerate(reversed(map_data)):
+            for x, char in enumerate(row.ljust(width)):
+                map_x = x * tile_size +tile_size//2
+                map_y = y * tile_size +tile_size//2
+
+                if char == "=":
+                    grass = arcade.Sprite(ASSETS["="], scale=0.5)
+                    grass.center_x = map_x
+                    grass.center_y = map_y
+                    self.wall_list.append(grass)
+                elif char == "-":
+                    grassH = arcade.Sprite(ASSETS["-"], scale=0.5)
+                    grassH.center_x = map_x
+                    grassH.center_y = map_y
+                    self.wall_list.append(grassH)
+                elif char == "x":
+                    box = arcade.Sprite(ASSETS["x"], scale=0.5)
+                    box.center_x = map_x
+                    box.center_y = map_y
+                    self.wall_list.append(box)
+                elif char == "*":
+                    coin = arcade.Sprite(ASSETS["*"], scale=0.5)
+                    coin.center_x = map_x
+                    coin.center_y = map_y
+                    self.coin_list.append(coin)
+                elif char == 'S':
+                    self.player_sprite.center_x = map_x
+                    self.player_sprite.center_y = map_y       
 
         
         
@@ -103,9 +168,9 @@ class GameView(arcade.View):
         """Render the screen."""
         self.clear() # always start with self.clear()
         with self.camera.activate():
-            self.player_sprite_list.draw()
             self.wall_list.draw()
             self.coin_list.draw()
+            self.player_sprite_list.draw()
 
 
 
@@ -135,14 +200,10 @@ class GameView(arcade.View):
                 # stop lateral movement
                 self.player_sprite.change_x = 0
 
-    def read_decode(self, file_path):
 
-        with open(file_path, "r", encoding="utf-8", newline='') as f:
-            lines = f.readlines()
+
         
-        width = height = 0
-        for line in lines:
-            if line.startswith("width:"):
+
 
 
 
