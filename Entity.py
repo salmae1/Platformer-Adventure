@@ -12,7 +12,7 @@ class Blob(arcade.Sprite):
 
     def movement_blob(self) -> None:
         """Handles blob movement and reverses direction when hitting walls."""
-        from game_view import GameView
+        from gameview import GameView
         right_hitbox = self.right + self.change_x
         left_hitbox = self.left + self.change_x
 

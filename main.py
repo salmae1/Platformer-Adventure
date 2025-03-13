@@ -1,5 +1,5 @@
 import arcade
-from game_view import GameView
+from gameview import GameView
 
 # Constants
 WINDOW_WIDTH = 1280
