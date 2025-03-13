@@ -1,6 +1,8 @@
 width: 20
 height: 6
+next-map: map2.txt
 ---
+E
 *    -  -
 ---        -
      o*

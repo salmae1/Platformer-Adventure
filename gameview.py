@@ -14,7 +14,8 @@ ASSETS = {
     "*": ":resources:/images/items/coinGold.png",
     "o": ":resources:/images/enemies/slimeBlue.png",
     "£": ":resources:/images/tiles/lava.png",
-    "S": ":resources:/images/animated_characters/female_person/femalePerson_idle.png"
+    "S": ":resources:/images/animated_characters/female_person/femalePerson_idle.png",
+    "E": ":resources:/images/tiles/signExit.png"
 }
 
 
@@ -31,7 +32,7 @@ class GameView(arcade.View):
     physics_engine: arcade.PhysicsEnginePlatformer
 
     camera : arcade.camera.Camera2D
-
+    camera_score : arcade.camera.Camera2D
 
 
     def __init__(self) -> None:
@@ -41,15 +42,15 @@ class GameView(arcade.View):
         # Choose a nice comfy background color
         self.background_color = arcade.csscolor.CORNFLOWER_BLUE
 
-        self.wall_list = arcade.SpriteList(use_spatial_hash = True)
-        self.coin_list = arcade.SpriteList(use_spatial_hash = True)
-        self.lava_list = arcade.SpriteList(use_spatial_hash = True)
+        self.score = 0
 
 
 
         self.collect_coin_sound = arcade.load_sound(":resources:sounds/coin1.wav", streaming=False)
         self.jump_sound = arcade.load_sound(":resources:sounds/jump1.wav", streaming= False)
         self.game_over_sound = arcade.load_sound(" :resources:sounds/gameover1.wav", streaming = False)
+        self.next_level = arcade.load_sound(":resources:/sounds/upgrade1.wav", streaming= False)
+
 
         # Setup our game
         self.setup()
@@ -64,6 +65,7 @@ class GameView(arcade.View):
         
 
         width = height = 0
+        next_map =" "
         index = 0
 
         # Configuration
@@ -73,6 +75,8 @@ class GameView(arcade.View):
                 width = int(value)
             elif key == "height":
                 height = int(value)
+            elif key == "next_map":
+                next_map = str(value)
             index += 1
         
 
@@ -85,14 +89,18 @@ class GameView(arcade.View):
             index += 1
         
 
-        return width, height, map_data
+        return width, height, map_data, next_map
     
 
         
 
 
-    def setup(self) -> None:
+    def setup(self, file_path = "maps/map1.txt" ) -> None:
         """Set up the game here."""
+        self.wall_list = arcade.SpriteList(use_spatial_hash = True)
+        self.coin_list = arcade.SpriteList(use_spatial_hash = True)
+        self.lava_list = arcade.SpriteList(use_spatial_hash = True)
+        self.exit_list = arcade.SpriteList(use_spatial_hash = True)
 
         self.player_sprite = arcade.Sprite(
             ":resources:images/animated_characters/female_adventurer/femaleAdventurer_idle.png",
@@ -102,7 +110,8 @@ class GameView(arcade.View):
         self.player_sprite_list = arcade.SpriteList()
         self.player_sprite_list.append(self.player_sprite)
 
-        width, height, map_data = self.read_map("maps/map1.txt")
+
+        width, height, map_data, next_map = self.read_map(file_path)
 
 
         # Choix par convention
@@ -141,6 +150,12 @@ class GameView(arcade.View):
                     lava.center_x = map_x
                     lava.center_y = map_y
                     self.lava_list.append(lava)
+                elif char == "E":
+                    exit = arcade.Sprite(ASSETS["E"], scale= 0.5)
+                    exit.center_x = map_x
+                    exit.center_y = map_y
+                    self.exit_list.append(exit)
+
 
         
         
@@ -152,6 +167,9 @@ class GameView(arcade.View):
         )
 
         self.camera = arcade.camera.Camera2D()
+        self.camera_score = arcade.camera.Camera2D()
+
+
 
         
 
@@ -170,10 +188,20 @@ class GameView(arcade.View):
         for coin in coin_hit_list:
             coin.remove_from_sprite_lists()
             arcade.play_sound(self.collect_coin_sound, loop=False)
+            self.score += 1
 
         if arcade.check_for_collision_with_list(self.player_sprite, self.lava_list):
             arcade.play_sound(self.game_over_sound, loop= False)
             self.setup()
+        
+        if arcade.check_for_collision_with_list(self.player_sprite, self.exit_list):
+            arcade.play_sound(self.next_level, loop=False)
+            self.setup("maps/map2.txt")
+
+
+
+
+
             
     def on_draw(self) -> None:
         """Render the screen."""
@@ -183,6 +211,15 @@ class GameView(arcade.View):
             self.coin_list.draw()
             self.player_sprite_list.draw()
             self.lava_list.draw()
+
+
+        with self.camera_score.activate():
+            w, h = arcade.get_window().get_size()
+            SCORE_TEXT = f"SCORE {self.score}"
+            arcade.draw_text(SCORE_TEXT, 10, h - 10, arcade.csscolor.WHITE, 18)
+
+
+
 
 
     def on_key_press(self, key: int, modifiers: int) -> None:
