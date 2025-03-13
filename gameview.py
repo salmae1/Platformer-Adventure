@@ -43,10 +43,13 @@ class GameView(arcade.View):
 
         self.wall_list = arcade.SpriteList(use_spatial_hash = True)
         self.coin_list = arcade.SpriteList(use_spatial_hash = True)
+        self.lava_list = arcade.SpriteList(use_spatial_hash = True)
+
+
 
         self.collect_coin_sound = arcade.load_sound(":resources:sounds/coin1.wav", streaming=False)
         self.jump_sound = arcade.load_sound(":resources:sounds/jump1.wav", streaming= False)
-
+        self.game_over_sound = arcade.load_sound(" :resources:sounds/gameover1.wav", streaming = False)
 
         # Setup our game
         self.setup()
@@ -133,6 +136,11 @@ class GameView(arcade.View):
                 elif char == 'S':
                     self.player_sprite.center_x = map_x
                     self.player_sprite.center_y = map_y       
+                elif char == "£":
+                    lava = arcade.Sprite(ASSETS["£"], scale = 0.5)
+                    lava.center_x = map_x
+                    lava.center_y = map_y
+                    self.lava_list.append(lava)
 
         
         
@@ -163,7 +171,10 @@ class GameView(arcade.View):
             coin.remove_from_sprite_lists()
             arcade.play_sound(self.collect_coin_sound, loop=False)
 
-
+        if arcade.check_for_collision_with_list(self.player_sprite, self.lava_list):
+            arcade.play_sound(self.game_over_sound, loop= False)
+            self.setup()
+            
     def on_draw(self) -> None:
         """Render the screen."""
         self.clear() # always start with self.clear()
@@ -171,7 +182,7 @@ class GameView(arcade.View):
             self.wall_list.draw()
             self.coin_list.draw()
             self.player_sprite_list.draw()
-
+            self.lava_list.draw()
 
 
     def on_key_press(self, key: int, modifiers: int) -> None:
