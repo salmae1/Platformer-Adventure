@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 import arcade
+from Entity import Blob
 
 
 WINDOW_WIDTH = 1280
@@ -14,8 +15,11 @@ PLAYER_JUMP_SPEED = 18
 class GameView(arcade.View):
     """Main in-game view."""
     player_sprite: arcade.Sprite
+    blob_sprite_list : arcade.SpriteList[Blob]
     player_sprite_list : arcade.SpriteList[arcade.Sprite]
     wall_list : arcade.SpriteList(use_spatial_hash=True) # type: ignore
+    no_go_list : arcade.SpriteList(use_spatial_hash=True) #type: ignore
+    """nogo is fixed """
     physics_engine : arcade.PhysicsEnginePlatformer
     camera : arcade.camera.Camera2D
     coin_list : arcade.SpriteList(use_spatial_hash=True)  # type: ignore
@@ -37,6 +41,7 @@ class GameView(arcade.View):
         self.can_jump = True
         self.collect_coin_sound = arcade.load_sound(":resources:sounds/coin1.wav", streaming=False)
         self.jump_sound = arcade.load_sound(":resources:sounds/jump1.wav", streaming= False)
+        self.gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav.", streaming = False)
 
         self.camera = arcade.camera.Camera2D()
         self.camera_bounds = arcade.LRBT(
@@ -51,11 +56,17 @@ class GameView(arcade.View):
         """Set up the game here."""
         self.player_sprite = arcade.Sprite(
             ":resources:images/animated_characters/female_adventurer/femaleAdventurer_idle.png",
-            center_x=64,
-            center_y=128 ,
+            center_x=400,
+            center_y=465 ,
             scale = 0.5
         )
-
+        self.blob  = Blob(
+            ":resources:images/enemies/slimeBlue.png",
+            center_x = 300 ,
+            center_y = 465,
+            scale = 0.5 ,
+            game_view= self
+        )
         self.wall_list = arcade.SpriteList()
         for i in range (0,1280,64):
             self.wall_sprite=arcade.Sprite(
@@ -65,6 +76,25 @@ class GameView(arcade.View):
                 scale= 0.5
             )
             self.wall_list.append(self.wall_sprite)
+
+        for i in range (280,800,64):
+            self.wall_sprite=arcade.Sprite(
+                ":resources:images/tiles/grassMid.png",
+                center_x= i ,
+                center_y= 400 ,
+                scale= 0.5
+            )
+            self.wall_list.append(self.wall_sprite)
+
+        self.no_go_list = arcade.SpriteList()
+        for i in range (1280,2000,64):
+            self.lava_sprite=arcade.Sprite(
+                ":resources:images/tiles/lava.png",
+                center_x= i ,
+                center_y= 32 ,
+                scale= 0.5
+            )
+            self.no_go_list.append(self.lava_sprite)    
 
         for i in range(256,1024,256) :
             wall_sprite=arcade.Sprite(
@@ -94,8 +124,10 @@ class GameView(arcade.View):
             walls = self.wall_list ,
             gravity_constant= PLAYER_GRAVITY
         )
-        
-
+        self.blob_sprite_list = arcade.SpriteList()
+        self.blob_sprite_list.append(self.blob)
+               
+                 
 
 
     def on_draw(self) -> None:
@@ -105,9 +137,17 @@ class GameView(arcade.View):
         self.wall_list.draw()
         self.player_sprite_list.draw()
         self.coin_list.draw()
-
-
-
+        self.no_go_list.draw()
+        self.blob_sprite_list.draw()
+        self.blob_sprite_list.draw_hit_boxes()
+    
+    def check_for_gameover(self)-> None :
+        if len(arcade.check_for_collision_with_list(self.player_sprite, self.no_go_list)) != 0 :
+            arcade.play_sound(self.gameover_sound,loop=False)
+            self.setup()
+        if len(arcade.check_for_collision_with_list(self.player_sprite, self.blob_sprite_list)) != 0 :
+            arcade.play_sound(self.gameover_sound,loop=False)
+            self.setup()
 
     def update_player_speed(self)-> None :
         self.player_sprite.change_x = 0 
@@ -166,10 +206,11 @@ class GameView(arcade.View):
             self.window.delta_time ,
             panning_fraction
         )
-        self.camera.position = arcade.camera.grips.constrain_xy(
+        self.bounds = arcade.camera.grips.constrain_xy(
             self.camera.view_data ,
             self.camera_bounds ,
         )
+        self.camera.position = arcade.Vec2(self.bounds[0],self.bounds[1])
 
     def on_update (self,delta_time : float ) -> None :
         """Called once per frame, before drawing.
@@ -184,3 +225,7 @@ class GameView(arcade.View):
             coin = arcade.check_for_collision_with_list(self.player_sprite, self.coin_list)[0]
             coin.remove_from_sprite_lists()
             arcade.play_sound(self.collect_coin_sound, loop=False)
+        
+        self.check_for_gameover()
+        self.blob.update_movement()
+        
