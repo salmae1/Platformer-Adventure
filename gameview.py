@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 import arcade
+import math
 from Entity import Blob
 
 
@@ -60,6 +61,11 @@ class GameView(arcade.View):
             center_y=465 ,
             scale = 0.5
         )
+        self.sword = arcade.Sprite(
+            "assets/kenney-voxel-items-png/sword_silver.png",
+            scale=0.5 * 0.7,
+        )
+
         self.blob  = Blob(
             ":resources:images/enemies/slimeBlue.png",
             center_x = 300 ,
@@ -199,6 +205,43 @@ class GameView(arcade.View):
                 self.update_player_speed()
 
 
+    def on_mouse_press(self, x, y, button, modifiers):
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            # Convert screen coordinates to world coordinates
+            world_x, world_y = (x - (WINDOW_WIDTH / 2)) / self.camera.zoom + self.camera.position[0] ,(y - (WINDOW_HEIGHT / 2)) / self.camera.zoom + self.camera.position[1]
+
+            # Calculate the angle of the sword towards the mouse position
+            angle = 45-math.degrees(math.atan2(world_y - self.player_sprite.center_y,
+                                          world_x - self.player_sprite.center_x))
+
+            # Set the sword angle
+            self.sword.angle = angle
+
+        # Determine where to place the sword (either left or right of the player)
+            if world_x >= self.player_sprite.center_x:
+                self.sword.center_x = self.player_sprite.right + 10
+            else:
+                self.sword.center_x = self.player_sprite.left - 10
+
+            # Adjust the vertical position slightly above or below the player
+            self.sword.center_y = self.player_sprite.center_y
+
+            # Add the sword to the sprite list to make it visible
+            self.player_sprite_list.append(self.sword)
+        
+    def kill_monster(self) -> None :
+        hit_with_sword = arcade.check_for_collision_with_list(self.sword,self.blob_sprite_list)
+        if hit_with_sword :
+            monster = hit_with_sword[0]
+            monster.remove_from_sprite_lists()
+
+
+
+    def on_mouse_release(self, x, y, button, modifiers):
+        if button == arcade.MOUSE_BUTTON_LEFT :
+            self.player_sprite_list.pop(1)
+
+
     def pan_camera_to_player(self, panning_fraction : float = 0.2):
         self.camera.position = arcade.math.smerp_2d(
             self.camera.position ,
@@ -217,10 +260,13 @@ class GameView(arcade.View):
         This is where in-world time "advances", or "ticks".
         """
         self.physics_engine.update()
+
         if self.physics_engine.can_jump() :
             self.can_jump = True
 
         self.pan_camera_to_player()
+
+        self.kill_monster()
         if len(arcade.check_for_collision_with_list(self.player_sprite, self.coin_list)) != 0:
             coin = arcade.check_for_collision_with_list(self.player_sprite, self.coin_list)[0]
             coin.remove_from_sprite_lists()
