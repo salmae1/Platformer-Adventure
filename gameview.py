@@ -1,8 +1,9 @@
 
 from __future__ import annotations
+from typing import Final
 import arcade
 import math
-from Entity import Blob
+from Entity import Entity ,Blob , Bat
 
 
 WINDOW_WIDTH = 1280
@@ -16,10 +17,10 @@ PLAYER_JUMP_SPEED = 18
 class GameView(arcade.View):
     """Main in-game view."""
     player_sprite: arcade.Sprite
-    blob_sprite_list : arcade.SpriteList[Blob]
+    Entities: arcade.SpriteList[Entity]
     player_sprite_list : arcade.SpriteList[arcade.Sprite]
     wall_list : arcade.SpriteList(use_spatial_hash=True) # type: ignore
-    no_go_list : arcade.SpriteList(use_spatial_hash=True) #type: ignore
+    no_go_list :arcade.SpriteList(use_spatial_hash=True) #type: ignore
     """nogo is fixed """
     physics_engine : arcade.PhysicsEnginePlatformer
     camera : arcade.camera.Camera2D
@@ -67,11 +68,14 @@ class GameView(arcade.View):
         )
 
         self.blob  = Blob(
-            ":resources:images/enemies/slimeBlue.png",
             center_x = 300 ,
-            center_y = 465,
-            scale = 0.5 ,
+            center_y = 465 ,
             game_view= self
+        )
+        self.bat = Bat(
+            center_x = 200 ,
+            center_y= 200 ,
+            game_view= self  
         )
         self.wall_list = arcade.SpriteList()
         for i in range (0,1280,64):
@@ -130,8 +134,9 @@ class GameView(arcade.View):
             walls = self.wall_list ,
             gravity_constant= PLAYER_GRAVITY
         )
-        self.blob_sprite_list = arcade.SpriteList()
-        self.blob_sprite_list.append(self.blob)
+        self.Entities = arcade.SpriteList()
+        self.Entities.append(self.blob)
+        self.Entities.append(self.bat)
                
                  
 
@@ -144,14 +149,13 @@ class GameView(arcade.View):
         self.player_sprite_list.draw()
         self.coin_list.draw()
         self.no_go_list.draw()
-        self.blob_sprite_list.draw()
-        self.blob_sprite_list.draw_hit_boxes()
+        self.Entities.draw()
     
     def check_for_gameover(self)-> None :
         if len(arcade.check_for_collision_with_list(self.player_sprite, self.no_go_list)) != 0 :
             arcade.play_sound(self.gameover_sound,loop=False)
             self.setup()
-        if len(arcade.check_for_collision_with_list(self.player_sprite, self.blob_sprite_list)) != 0 :
+        if len(arcade.check_for_collision_with_list(self.player_sprite, self.Entities)) != 0 :
             arcade.play_sound(self.gameover_sound,loop=False)
             self.setup()
 
@@ -230,7 +234,7 @@ class GameView(arcade.View):
             self.player_sprite_list.append(self.sword)
         
     def kill_monster(self) -> None :
-        hit_with_sword = arcade.check_for_collision_with_list(self.sword,self.blob_sprite_list)
+        hit_with_sword = arcade.check_for_collision_with_list(self.sword,self.Entities)
         if hit_with_sword :
             monster = hit_with_sword[0]
             monster.remove_from_sprite_lists()
@@ -271,7 +275,8 @@ class GameView(arcade.View):
             coin = arcade.check_for_collision_with_list(self.player_sprite, self.coin_list)[0]
             coin.remove_from_sprite_lists()
             arcade.play_sound(self.collect_coin_sound, loop=False)
-        
+        self.sword.update()
         self.check_for_gameover()
-        self.blob.update_movement()
+        self.blob.on_update()
+        self.bat.on_update()
         
