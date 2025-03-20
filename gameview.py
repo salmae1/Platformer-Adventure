@@ -14,14 +14,21 @@ PLAYER_GRAVITY = 1
 """Gravity applied to the player, in pixels per frame²."""
 PLAYER_JUMP_SPEED = 18
 """Instant vertical speed for jumping, in pixels per frame."""
+ASSETS = {
+    "=": ":resources:/images/tiles/grassMid.png",
+    "-": ":resources:/images/tiles/grassHalf_mid.png",
+    "x": ":resources:/images/tiles/boxCrate_double.png",
+    "*": ":resources:/images/items/coinGold.png",
+    "£": ":resources:/images/tiles/lava.png",
+    "S": ":resources:/images/animated_characters/female_person/femalePerson_idle.png",
+    "E": ":resources:/images/tiles/signExit.png"
+}
 class GameView(arcade.View):
     """Main in-game view."""
     player_sprite: arcade.Sprite
     Entities: arcade.SpriteList[Entity]
     player_sprite_list : arcade.SpriteList[arcade.Sprite]
     wall_list : arcade.SpriteList(use_spatial_hash=True) # type: ignore
-    no_go_list :arcade.SpriteList(use_spatial_hash=True) #type: ignore
-    """nogo is fixed """
     physics_engine : arcade.PhysicsEnginePlatformer
     camera : arcade.camera.Camera2D
     coin_list : arcade.SpriteList(use_spatial_hash=True)  # type: ignore
@@ -44,6 +51,8 @@ class GameView(arcade.View):
         self.collect_coin_sound = arcade.load_sound(":resources:sounds/coin1.wav", streaming=False)
         self.jump_sound = arcade.load_sound(":resources:sounds/jump1.wav", streaming= False)
         self.gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav.", streaming = False)
+        self.next_level = arcade.load_sound(":resources:/sounds/upgrade1.wav", streaming= False)
+
 
         self.camera = arcade.camera.Camera2D()
         self.camera_bounds = arcade.LRBT(
@@ -53,9 +62,45 @@ class GameView(arcade.View):
             WINDOW_HEIGHT
         )
 
+    def read_map(self, file_path):
+        """read and analyse the map."""
+    
+        with open(file_path, 'r', encoding="utf-8", newline='') as f:
+            lines = f.readlines()
+        
 
-    def setup(self) -> None:
+        width = height = 0
+        next_map =" "
+        index = 0
+
+        # Configuration
+        while index < len(lines) and lines[index].strip()!= "---":
+            key, value = lines[index].strip().split(": ")
+            if key == "width":
+                width = int(value)
+            elif key == "height":
+                height = int(value)
+            elif key == "next_map":
+                next_map = str(value)
+            index += 1
+        
+
+        index += 1
+        map_data = []
+
+        # Characters
+        while index < len(lines) and lines[index].strip() != "---":
+            map_data.append(lines[index].rstrip("\n"))
+            index += 1
+        
+
+        return width, height, map_data, next_map
+    
+
+
+    def setup( self, file_path = "maps/map1.txt") -> None:
         """Set up the game here."""
+
         self.player_sprite = arcade.Sprite(
             ":resources:images/animated_characters/female_adventurer/femaleAdventurer_idle.png",
             center_x=400,
@@ -66,77 +111,70 @@ class GameView(arcade.View):
             "assets/kenney-voxel-items-png/sword_silver.png",
             scale=0.5 * 0.7,
         )
-
-        self.blob  = Blob(
-            center_x = 300 ,
-            center_y = 465 ,
-            game_view= self
-        )
-        self.bat = Bat(
-            center_x = 200 ,
-            center_y= 200 ,
-            game_view= self  
-        )
-        self.wall_list = arcade.SpriteList()
-        for i in range (0,1280,64):
-            self.wall_sprite=arcade.Sprite(
-                ":resources:images/tiles/grassMid.png",
-                center_x= i ,
-                center_y= 32 ,
-                scale= 0.5
-            )
-            self.wall_list.append(self.wall_sprite)
-
-        for i in range (280,800,64):
-            self.wall_sprite=arcade.Sprite(
-                ":resources:images/tiles/grassMid.png",
-                center_x= i ,
-                center_y= 400 ,
-                scale= 0.5
-            )
-            self.wall_list.append(self.wall_sprite)
-
-        self.no_go_list = arcade.SpriteList()
-        for i in range (1280,2000,64):
-            self.lava_sprite=arcade.Sprite(
-                ":resources:images/tiles/lava.png",
-                center_x= i ,
-                center_y= 32 ,
-                scale= 0.5
-            )
-            self.no_go_list.append(self.lava_sprite)    
-
-        for i in range(256,1024,256) :
-            wall_sprite=arcade.Sprite(
-                ":resources:images/tiles/boxCrate_double.png",
-                center_x= i ,
-                center_y= 96,
-                scale= 0.5
-            )
-
-            self.wall_list.append(wall_sprite)
-            self.coin_list = arcade.SpriteList()
-
-        for i in range(128,1250,256) :
-                coin_sprite=arcade.Sprite(
-                ":resources:images/items/coinGold.png",
-                center_x= i ,
-                center_y= 96,
-                scale= 0.5
-            )
-                self.coin_list.append(coin_sprite)
-
-        self.player_sprite_list =  arcade.SpriteList()
+        self.player_sprite_list= arcade.SpriteList()
         self.player_sprite_list.append(self.player_sprite)
+        self.wall_list = arcade.SpriteList()
+        self.coin_list = arcade.SpriteList(use_spatial_hash = True)
+        self.lava_list : arcade.SpriteList = arcade.SpriteList(use_spatial_hash = True)
+        self.exit_list : arcade.SpriteList = arcade.SpriteList(use_spatial_hash = True)
+        self.Entities = arcade.SpriteList()
+
+        # Choix par convention
+        tile_size = 64
+
+        width, height, map_data, next_map = self.read_map(file_path)
+
+        for y, row in enumerate(reversed(map_data)):
+            for x, char in enumerate(row.ljust(width)):
+                map_x = x * tile_size +tile_size//2
+                map_y = y * tile_size +tile_size//2
+
+                if char == "=":
+                    grass = arcade.Sprite(ASSETS["="], scale=0.5)
+                    grass.center_x = map_x
+                    grass.center_y = map_y
+                    self.wall_list.append(grass)
+                elif char == "-":
+                    grassH = arcade.Sprite(ASSETS["-"], scale=0.5)
+                    grassH.center_x = map_x
+                    grassH.center_y = map_y
+                    self.wall_list.append(grassH)
+                elif char == "x":
+                    box = arcade.Sprite(ASSETS["x"], scale=0.5)
+                    box.center_x = map_x
+                    box.center_y = map_y
+                    self.wall_list.append(box)
+                elif char == "*":
+                    coin = arcade.Sprite(ASSETS["*"], scale=0.5)
+                    coin.center_x = map_x
+                    coin.center_y = map_y
+                    self.coin_list.append(coin)
+                elif char == 'S':
+                    self.player_sprite.center_x = map_x
+                    self.player_sprite.center_y = map_y       
+                elif char == "£":
+                    lava = arcade.Sprite(ASSETS["£"], scale = 0.5)
+                    lava.center_x = map_x
+                    lava.center_y = map_y
+                    self.lava_list.append(lava)
+                elif char == "E":
+                    exit = arcade.Sprite(ASSETS["E"], scale= 0.5)
+                    exit.center_x = map_x
+                    exit.center_y = map_y
+                    self.exit_list.append(exit)
+                elif char == "o":
+                    exit= Blob(map_x,map_y,game_view= self)
+                    self.Entities.append(exit)
+                elif char ==  "v":
+                    exit = Bat(map_x,map_y,self)
+                    self.Entities.append(exit)
 
         self.physics_engine = arcade.PhysicsEnginePlatformer(
-            self.player_sprite ,
-            walls = self.wall_list ,
-            gravity_constant= PLAYER_GRAVITY
+            self.player_sprite,
+            walls=self.wall_list,
+            gravity_constant=PLAYER_GRAVITY
         )
-        self.Entities = arcade.SpriteList()
-        self.Entities.append(self.blob)
-        self.Entities.append(self.bat)
+
                
                  
 
@@ -145,14 +183,15 @@ class GameView(arcade.View):
         """Render the screen."""
         self.clear() # always start with self.clear()
         self.camera.use()
-        self.wall_list.draw()
-        self.player_sprite_list.draw()
-        self.coin_list.draw()
-        self.no_go_list.draw()
         self.Entities.draw()
+        self.wall_list.draw()
+        self.coin_list.draw()
+        self.player_sprite_list.draw()
+        self.lava_list.draw()
+        self.Entities.draw_hit_boxes()
     
     def check_for_gameover(self)-> None :
-        if len(arcade.check_for_collision_with_list(self.player_sprite, self.no_go_list)) != 0 :
+        if len(arcade.check_for_collision_with_list(self.player_sprite, self.lava_list)) != 0 :
             arcade.play_sound(self.gameover_sound,loop=False)
             self.setup()
         if len(arcade.check_for_collision_with_list(self.player_sprite, self.Entities)) != 0 :
@@ -243,7 +282,7 @@ class GameView(arcade.View):
 
     def on_mouse_release(self, x, y, button, modifiers):
         if button == arcade.MOUSE_BUTTON_LEFT :
-            self.player_sprite_list.pop(1)
+            self.sword.remove_from_sprite_lists()
 
 
     def pan_camera_to_player(self, panning_fraction : float = 0.2):
@@ -277,6 +316,10 @@ class GameView(arcade.View):
             arcade.play_sound(self.collect_coin_sound, loop=False)
         self.sword.update()
         self.check_for_gameover()
-        self.blob.on_update()
-        self.bat.on_update()
+        for entities in self.Entities:
+            entities.on_update()
+        if arcade.check_for_collision_with_list(self.player_sprite, self.exit_list):
+            arcade.play_sound(self.next_level, loop=False)
+            self.setup("maps/map2.txt")
+
         
