@@ -1,4 +1,13 @@
 import arcade
+import math
+from arcade import Vec2
+from typing import Final
+from typing import List
+from typing import Tuple
+
+
+WINDOW_WIDTH = 1280
+WINDOW_HEIGHT = 720
 
 
 PLAYER_MOVEMENT_SPEED = 5
@@ -34,6 +43,10 @@ class GameView(arcade.View):
     camera : arcade.camera.Camera2D
     camera_score : arcade.camera.Camera2D
 
+    coin_list: arcade.SpriteList[arcade.Sprite]
+    lava_list: arcade.SpriteList[arcade.Sprite]
+    exit_list: arcade.SpriteList[arcade.Sprite]
+
 
     def __init__(self) -> None:
         # Magical incantion: initialize the Arcade view
@@ -57,7 +70,7 @@ class GameView(arcade.View):
 
 
 
-    def read_map(self, file_path):
+    def read_map(self, file_path: str) -> Tuple[int, int, List[str], str]:
         """read and analyse the map."""
     
         with open(file_path, 'r', encoding="utf-8", newline='') as f:
@@ -95,12 +108,14 @@ class GameView(arcade.View):
         
 
 
-    def setup(self, file_path = "maps/map1.txt" ) -> None:
+    def setup(self, file_path: str = "maps/map1.txt" ) -> None:
         """Set up the game here."""
         self.wall_list = arcade.SpriteList(use_spatial_hash = True)
         self.coin_list = arcade.SpriteList(use_spatial_hash = True)
         self.lava_list = arcade.SpriteList(use_spatial_hash = True)
         self.exit_list = arcade.SpriteList(use_spatial_hash = True)
+
+
 
         self.player_sprite = arcade.Sprite(
             ":resources:images/animated_characters/female_adventurer/femaleAdventurer_idle.png",
@@ -182,7 +197,7 @@ class GameView(arcade.View):
         self.physics_engine.update()
 
         #waiting for a new version of mypy
-        self.camera.position = self.player_sprite.position #type ignore
+        self.camera.position = Vec2(*self.player_sprite.position) #type ignore
         
         coin_hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.coin_list)
         for coin in coin_hit_list:
