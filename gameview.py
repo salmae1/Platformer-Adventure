@@ -28,10 +28,13 @@ class GameView(arcade.View):
     player_sprite: arcade.Sprite
     Entities: arcade.SpriteList[Entity]
     player_sprite_list : arcade.SpriteList[arcade.Sprite]
-    wall_list : arcade.SpriteList(use_spatial_hash=True) # type: ignore
+    wall_list: arcade.SpriteList [arcade.Sprite]
     physics_engine : arcade.PhysicsEnginePlatformer
     camera : arcade.camera.Camera2D
-    coin_list : arcade.SpriteList(use_spatial_hash=True)  # type: ignore
+    coin_list : arcade.SpriteList[arcade.Sprite]
+    lava_list : arcade.SpriteList[arcade.Sprite]
+    exit_list : arcade.SpriteList[arcade.Sprite]    
+
 
 
     def __init__(self) -> None:
@@ -62,7 +65,7 @@ class GameView(arcade.View):
             WINDOW_HEIGHT
         )
 
-    def read_map(self, file_path):
+    def read_map(self, file_path : str)-> tuple[int, int, list[str], str]:
         """read and analyse the map."""
     
         with open(file_path, 'r', encoding="utf-8", newline='') as f:
@@ -98,7 +101,7 @@ class GameView(arcade.View):
     
 
 
-    def setup( self, file_path = "maps/map1.txt") -> None:
+    def setup( self, file_path: str = "maps/map1.txt") -> None:
         """Set up the game here."""
 
         self.player_sprite = arcade.Sprite(
@@ -115,8 +118,8 @@ class GameView(arcade.View):
         self.player_sprite_list.append(self.player_sprite)
         self.wall_list = arcade.SpriteList()
         self.coin_list = arcade.SpriteList(use_spatial_hash = True)
-        self.lava_list : arcade.SpriteList = arcade.SpriteList(use_spatial_hash = True)
-        self.exit_list : arcade.SpriteList = arcade.SpriteList(use_spatial_hash = True)
+        self.lava_list = arcade.SpriteList(use_spatial_hash = True)
+        self.exit_list = arcade.SpriteList(use_spatial_hash = True)
         self.Entities = arcade.SpriteList()
 
         # Choix par convention
@@ -248,7 +251,7 @@ class GameView(arcade.View):
                 self.update_player_speed()
 
 
-    def on_mouse_press(self, x, y, button, modifiers):
+    def on_mouse_press(self, x : int , y : int, button : int, modifiers : int )-> None :
         if button == arcade.MOUSE_BUTTON_LEFT:
             # Convert screen coordinates to world coordinates
             world_x, world_y = (x - (WINDOW_WIDTH / 2)) / self.camera.zoom + self.camera.position[0] ,(y - (WINDOW_HEIGHT / 2)) / self.camera.zoom + self.camera.position[1]
@@ -280,12 +283,12 @@ class GameView(arcade.View):
 
 
 
-    def on_mouse_release(self, x, y, button, modifiers):
+    def on_mouse_release(self, x : int , y : int, button : int , modifiers : int)-> None:
         if button == arcade.MOUSE_BUTTON_LEFT :
             self.sword.remove_from_sprite_lists()
 
 
-    def pan_camera_to_player(self, panning_fraction : float = 0.2):
+    def pan_camera_to_player(self, panning_fraction : float = 0.2)->None:
         self.camera.position = arcade.math.smerp_2d(
             self.camera.position ,
             self.player_sprite.position ,
@@ -317,7 +320,7 @@ class GameView(arcade.View):
         self.sword.update()
         self.check_for_gameover()
         for entities in self.Entities:
-            entities.on_update()
+            entities.on_update(delta_time)
         if arcade.check_for_collision_with_list(self.player_sprite, self.exit_list):
             arcade.play_sound(self.next_level, loop=False)
             self.setup("maps/map2.txt")
