@@ -4,16 +4,22 @@ from typing import Final
 import arcade
 import math
 from Entity import Entity ,Blob , Bat
+from arcade.types import Rect
 
 
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
+
 PLAYER_MOVEMENT_SPEED = 5
 """Lateral speed of the player, in pixels per frame."""
 PLAYER_GRAVITY = 1
 """Gravity applied to the player, in pixels per frame²."""
 PLAYER_JUMP_SPEED = 18
 """Instant vertical speed for jumping, in pixels per frame."""
+
+ARROW_GRAVITY = 0.2
+ARROW_SPEED = 10
+
 ASSETS = {
     "=": ":resources:/images/tiles/grassMid.png",
     "-": ":resources:/images/tiles/grassHalf_mid.png",
@@ -23,6 +29,15 @@ ASSETS = {
     "S": ":resources:/images/animated_characters/female_person/femalePerson_idle.png",
     "E": ":resources:/images/tiles/signExit.png"
 }
+WEAPON = {
+    "sword" : "assets/kenney-voxel-items-png/sword_bronze.png",
+    "bow" : "assets/kenney-voxel-items-png/bow.png",
+    "arrow" : "assets/kenney-voxel-items-png/arrow.png",
+    "bowArrow" : "assets/kenney-voxel-items-png/bowArrow.png"
+}
+
+
+
 class GameView(arcade.View):
     """Main in-game view."""
     player_sprite: arcade.Sprite
@@ -31,6 +46,7 @@ class GameView(arcade.View):
     wall_list : arcade.SpriteList(use_spatial_hash=True) # type: ignore
     physics_engine : arcade.PhysicsEnginePlatformer
     camera : arcade.camera.Camera2D
+    camera_score : arcade.camera.Camera2D
     coin_list : arcade.SpriteList(use_spatial_hash=True)  # type: ignore
 
 
@@ -40,6 +56,7 @@ class GameView(arcade.View):
 
         # Choose a nice comfy background color
         self.background_color = arcade.csscolor.CORNFLOWER_BLUE
+        self.score = 0
 
         # Setup our game
         self.setup()
@@ -48,19 +65,22 @@ class GameView(arcade.View):
         self.right_pressed = False
         self.up_pressed = False
         self.can_jump = True
+
         self.collect_coin_sound = arcade.load_sound(":resources:sounds/coin1.wav", streaming=False)
         self.jump_sound = arcade.load_sound(":resources:sounds/jump1.wav", streaming= False)
-        self.gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav.", streaming = False)
+        self.gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav", streaming = False)
         self.next_level = arcade.load_sound(":resources:/sounds/upgrade1.wav", streaming= False)
 
 
         self.camera = arcade.camera.Camera2D()
+        self.camera_score = arcade.camera.Camera2D()
         self.camera_bounds = arcade.LRBT(
             WINDOW_WIDTH / 2.0,
             WINDOW_WIDTH ,
             WINDOW_HEIGHT / 2 ,
             WINDOW_HEIGHT
         )
+
 
     def read_map(self, file_path):
         """read and analyse the map."""
@@ -107,13 +127,30 @@ class GameView(arcade.View):
             center_y=465 ,
             scale = 0.5
         )
+        
         self.sword = arcade.Sprite(
-            "assets/kenney-voxel-items-png/sword_silver.png",
+            WEAPON["sword"],
             scale=0.5 * 0.7,
         )
+        self.bow = arcade.Sprite(
+            WEAPON["bow"],
+            scale=0.5 * 0.7,
+        )
+        self.arrow = arcade.Sprite(
+            WEAPON["arrow"],
+            scale=0.5 * 0.7,
+        )
+        self.bowArrow = arcade.Sprite(
+            WEAPON["bowArrow"],
+            scale=0.5 * 0.7,
+        )
+        self.weapon = [self.sword, self.bow]
+        self.active_weapon_index = 1
+        self.active_weapon_sprite = self.bow
+
         self.player_sprite_list= arcade.SpriteList()
         self.player_sprite_list.append(self.player_sprite)
-        self.wall_list = arcade.SpriteList()
+        self.wall_list = arcade.SpriteList(use_spatial_hash = True)
         self.coin_list = arcade.SpriteList(use_spatial_hash = True)
         self.lava_list : arcade.SpriteList = arcade.SpriteList(use_spatial_hash = True)
         self.exit_list : arcade.SpriteList = arcade.SpriteList(use_spatial_hash = True)
@@ -175,20 +212,7 @@ class GameView(arcade.View):
             gravity_constant=PLAYER_GRAVITY
         )
 
-               
-                 
 
-
-    def on_draw(self) -> None:
-        """Render the screen."""
-        self.clear() # always start with self.clear()
-        self.camera.use()
-        self.Entities.draw()
-        self.wall_list.draw()
-        self.coin_list.draw()
-        self.player_sprite_list.draw()
-        self.lava_list.draw()
-        self.Entities.draw_hit_boxes()
     
     def check_for_gameover(self)-> None :
         if len(arcade.check_for_collision_with_list(self.player_sprite, self.lava_list)) != 0 :
@@ -230,6 +254,7 @@ class GameView(arcade.View):
                 self.update_player_speed()
             case arcade.key.SPACE :
                 self.setup()
+                self.score = 0
 
          
 
@@ -249,7 +274,16 @@ class GameView(arcade.View):
 
 
     def on_mouse_press(self, x, y, button, modifiers):
+
+        if button == arcade.MOUSE_BUTTON_RIGHT:
+            #Switch weapon
+            self.active_weapon_index = (self.active_weapon_index +1) % 2
+            self.active_weapon_sprite = self.weapon[self.active_weapon_index]
+
+        active_weapon = self.weapon[self.active_weapon_index]
+
         if button == arcade.MOUSE_BUTTON_LEFT:
+            self.weapon_visible = True
             # Convert screen coordinates to world coordinates
             world_x, world_y = (x - (WINDOW_WIDTH / 2)) / self.camera.zoom + self.camera.position[0] ,(y - (WINDOW_HEIGHT / 2)) / self.camera.zoom + self.camera.position[1]
 
@@ -258,31 +292,81 @@ class GameView(arcade.View):
                                           world_x - self.player_sprite.center_x))
 
             # Set the sword angle
-            self.sword.angle = angle
+            self.active_weapon_sprite.angle = angle
 
         # Determine where to place the sword (either left or right of the player)
             if world_x >= self.player_sprite.center_x:
-                self.sword.center_x = self.player_sprite.right + 10
+                active_weapon.center_x = self.player_sprite.right + 10
             else:
-                self.sword.center_x = self.player_sprite.left - 10
+                active_weapon.center_x = self.player_sprite.left - 10
 
             # Adjust the vertical position slightly above or below the player
-            self.sword.center_y = self.player_sprite.center_y
+            active_weapon.center_y = self.player_sprite.center_y
 
             # Add the sword to the sprite list to make it visible
-            self.player_sprite_list.append(self.sword)
+            self.player_sprite_list.append(active_weapon)
+
+            if active_weapon == self.bow:
+                self.arrow.center_x = self.player_sprite.center_x
+                self.arrow.center_y = self.player_sprite.center_x
+
+                arrow_angle = 45-math.degrees(math.atan2(world_y - self.player_sprite.center_y,
+                                          world_x - self.player_sprite.center_x))
+                self.arrow.angle = angle
+                self.arrow.change_x = ARROW_SPEED * math.cos(math.radians(arrow_angle))
+                self.arrow.change_y = ARROW_SPEED * math.sin(math.radians(arrow_angle))
+                self.player_sprite_list.append(self.arrow)
+
         
     def kill_monster(self) -> None :
         hit_with_sword = arcade.check_for_collision_with_list(self.sword,self.Entities)
+        hit_with_arrow = arcade.check_for_collision_with_list(self.arrow,self.Entities)
         if hit_with_sword :
             monster = hit_with_sword[0]
+            monster.remove_from_sprite_lists()
+        if hit_with_arrow :
+            monster = hit_with_arrow[0]
             monster.remove_from_sprite_lists()
 
 
 
     def on_mouse_release(self, x, y, button, modifiers):
-        if button == arcade.MOUSE_BUTTON_LEFT :
-            self.sword.remove_from_sprite_lists()
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            if self.active_weapon_index == 0:
+                self.sword.remove_from_sprite_lists()
+            else:
+                self.bow.remove_from_sprite_lists()
+                self.arrow.remove_from_sprite_lists()
+        
+    
+    def on_draw(self) -> None:
+        """Render the screen."""
+        self.clear() # always start with self.clear()
+        self.camera.use()
+        self.Entities.draw()
+        self.wall_list.draw()
+        self.coin_list.draw()
+        self.player_sprite_list.draw()
+        self.lava_list.draw()
+        self.Entities.draw_hit_boxes()
+
+        with self.camera_score.activate():
+            w, h = arcade.get_window().get_size()
+            SCORE_TEXT = f"SCORE {self.score}"
+            arcade.draw_text(SCORE_TEXT, w - 110, h - 30, 
+                             arcade.csscolor.WHITE, 18)
+            if self.active_weapon_index == 0:
+                active_weapon_image = self.sword
+            else:
+                active_weapon_image = self.bowArrow
+            weapon_rect = Rect( left=18, right=18+64, 
+                               bottom=18, top=18+64, 
+                               width=64, height=64,
+                               x=40, y=h-30)
+            arcade.draw_texture_rect(
+                texture=active_weapon_image.texture,
+                rect=weapon_rect
+            )
 
 
     def pan_camera_to_player(self, panning_fraction : float = 0.2):
@@ -314,12 +398,29 @@ class GameView(arcade.View):
             coin = arcade.check_for_collision_with_list(self.player_sprite, self.coin_list)[0]
             coin.remove_from_sprite_lists()
             arcade.play_sound(self.collect_coin_sound, loop=False)
+            self.score += 1
+
         self.sword.update()
+        self.bow.update()
+        self.arrow.update()
         self.check_for_gameover()
         for entities in self.Entities:
             entities.on_update()
         if arcade.check_for_collision_with_list(self.player_sprite, self.exit_list):
             arcade.play_sound(self.next_level, loop=False)
             self.setup("maps/map2.txt")
+        
+        if self.active_weapon_sprite:
+            self.active_weapon_sprite.center_x = self.player_sprite.right + 10
+            self.active_weapon_sprite.center_y = self.player_sprite.center_y
+
+
+        for arrow in self.player_sprite_list:
+            if isinstance(arrow, arcade.Sprite) and arrow != self.player_sprite:
+                arrow.change_y -= ARROW_GRAVITY
+                arrow.update
+
+                if arcade.check_for_collision_with_list(arrow, self.lava_list) or arrow.bottom < 0:
+                    arrow.remove_from_sprite_lists()
 
         
