@@ -1,0 +1,10 @@
+width: 40
+height: 8
+next-map: 
+---
+                      ↑
+ v        o   x  o    ↑   
+ x -   ←←xxxxxxx----  ↑ E
+S↓      o      ↓     xxx
+====££££====£££===£=====
+---

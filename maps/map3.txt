@@ -1,0 +1,9 @@
+width: 35
+height: 7
+next-map: map4.txt
+--- 
+  *   v    ↑           ←←---   *
+  x--  xxxxxx    *       xxx
+S ↓           o       £££££======
+====£££===========
+---

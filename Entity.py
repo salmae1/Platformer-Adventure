@@ -35,15 +35,15 @@ class Blob(Entity):
             self.center_x += self.change_x
             return
         from gameview import GameView
-        self.game:GameView
+        self.game: GameView
 
         right_hitbox = self.right + self.change_x
         left_hitbox = self.left + self.change_x
         ground_left = False
         ground_right = False
-        walls_hit = arcade.check_for_collision_with_list(self, self.game.wall_list)
 
         # Check for walls in front of the blob
+        walls_hit = arcade.check_for_collision_with_list(self, self.game.wall_list)
         if walls_hit:
             # Reverse direction if hitting a wall
             self.change_x = -self.change_x
