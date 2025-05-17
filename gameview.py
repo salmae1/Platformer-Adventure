@@ -1,13 +1,12 @@
 from __future__ import annotations
-from typing import Final
+from typing import Final , TypedDict, Literal
 import arcade
 import math
-from Entity import Entity ,Blob , Bat
+from Entity import Entity ,Blob , Bat ,Ghost
 from enum import Enum
 from arcade import Rect
 import time
-import sys
-import gc
+import yaml
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 PLAYER_MOVEMENT_SPEED = 5
@@ -29,7 +28,9 @@ ASSETS = {
     "*": ":resources:/images/items/coinGold.png",
     "£": ":resources:/images/tiles/lava.png",
     "S": ":resources:/images/animated_characters/female_person/femalePerson_idle.png",
-    "E": ":resources:/images/tiles/signExit.png"
+    "E": ":resources:/images/tiles/signExit.png" ,
+    "^": ":resources:/images/tiles/leverLeft.png", #left par defaut
+    "|":":resources:/images/tiles/stoneCenter_rounded.png"
 }
 WEAPON = {
     "sword" : "assets/kenney-voxel-items-png/sword_bronze.png",
@@ -37,6 +38,23 @@ WEAPON = {
     "arrow" : "assets/kenney-voxel-items-png/arrow.png",
     "bowArrow" : "assets/kenney-voxel-items-png/bowArrow.png"
 }
+class ACTION(TypedDict):
+    x: int
+    y: int
+    action: Literal["open-gate", "close-gate", "disable"]
+
+class SWITCH(TypedDict, total = False):
+    x: int
+    y: int
+    state: Literal["on", "off"]
+    switch_on: list[ACTION]
+    switch_off: list[ACTION]
+    enabled: bool
+
+class GATE(TypedDict, total = False):
+    x: int
+    y: int
+    state: Literal["open", "closed"]
 
 class GameView(arcade.View):
     """Main in-game view."""
@@ -50,8 +68,9 @@ class GameView(arcade.View):
     lava_list : arcade.SpriteList[arcade.Sprite]
     exit_list : arcade.SpriteList[arcade.Sprite]   
     platform_list : arcade.SpriteList[arcade.Sprite]
+    switch_list : arcade.SpriteList[arcade.Sprite]
+    gate_list : arcade.SpriteList[arcade.Sprite]
     score : int
-
 
 
     def __init__(self) -> None:
@@ -68,55 +87,103 @@ class GameView(arcade.View):
         self.right_pressed = False
         self.up_pressed = False
         self.can_jump = True
+
         self.collect_coin_sound = arcade.load_sound(":resources:sounds/coin1.wav", streaming=False)
         self.jump_sound = arcade.load_sound(":resources:sounds/jump1.wav", streaming= False)
         self.gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav.", streaming = False)
         self.next_level = arcade.load_sound(":resources:/sounds/upgrade1.wav", streaming= False)
-        self.score = 0
-        self.camera_score = arcade.camera.Camera2D()
- 
 
+        self.score = 0
+
+        self.camera_score = arcade.camera.Camera2D()
         self.camera = arcade.camera.Camera2D()
+
         from typing import Optional
         self.sword_draw_time: Optional[float] = None  # Track when the sword was drawn
 
+    
+
     @staticmethod
-    def read_map(file_path: str) -> tuple[int, int, list[str], str]:
+    def read_map(file_path: str) -> tuple[int, int, list[str], str, list[SWITCH], list[GATE]]:
         """read and analyse the map."""
     
         with open(file_path, 'r', encoding="utf-8", newline='\n') as f:
-            lines = f.readlines()
+            lines =f.readlines()
+
+        sep_index = None
+        for idx, line in enumerate(lines):
+            if line.strip() == "---":
+                sep_index = idx
+                break
+
+        if sep_index is None:
+            raise ValueError("No map separator '---' found in file")
         
-
-        width = height = 0
-        next_map = " "
-        index = 0
-
+        yaml_text = "".join (lines[:sep_index])
+        config = yaml.safe_load(yaml_text)
         # Configuration
-        while index < len(lines) and lines[index].strip() != "---":
-            key, value = lines[index].strip().split(": ")
-            if key == "width":
-                width = int(value)
-            elif key == "height":
-                height = int(value)
-            elif key == "next-map":
-                next_map = str("maps/") + value
-            index += 1
-        
+        width = config.get("width",0)
+        height = config.get("height",0)
+        next_map = config.get("next_map"," ")
+        switches_ = config.get("switches", [])
+        gates = config.get("gates", [])
 
-        index += 1
+
+        switches : list[SWITCH] = []
+        for yaml_switch in switches_:
+            x = int(yaml_switch["x"])
+            y = int(yaml_switch["y"])
+            state = yaml_switch.get("state", "off")
+            if state not in ("on", "off"):
+                state = "off"
+
+            switch_on: list[ACTION] = []
+            for action in yaml_switch.get("switch_on", []):
+                if action["action"] == "disable":
+                    switch_on.append({"x": x, "y": y, "action": "disable"})  # ← coordonnées du switch
+                else:
+                    switch_on.append({
+                        "x": int(action["x"]),
+                        "y": int(action["y"]),
+                        "action": action["action"],
+                    })
+
+            switch_off: list[ACTION] = []
+            for action in yaml_switch.get("switch_off", []):
+                if action["action"] == "disable":
+                    switch_off.append({"x": x, "y": y, "action": "disable"})  # ← coordonnées du switch
+                else:
+                    switch_off.append({
+                        "x": int(action["x"]),
+                        "y": int(action["y"]),
+                        "action": action["action"],
+                    })
+
+            switches.append({
+                "x": x,
+                "y": y,
+                "state": state,
+                "switch_on": switch_on,
+                "switch_off": switch_off,
+                "enabled": True,
+            })
+
+        idx += 1
         map_data = []
 
         # Characters
-        while index < len(lines)  and lines[index].rstrip() != "---":
-            lines[index] = lines[index].rstrip().ljust(width)
-            map_data.append(lines[index])
-            index += 1
-        
+        while idx < len(lines)  and lines[idx].rstrip() != "---":
+            lines[idx] = lines[idx].rstrip().ljust(width)
+            map_data.append(lines[idx])
+            idx += 1
+                   
         map_data = list(reversed(map_data))
-        return width, height, map_data, next_map
-    
+        return width, height, map_data, next_map, switches, gates
 
+    @staticmethod
+    def coordinate(x: float, tile_size: int = 64) -> float:
+        """Convert tile coordinates to pixel coordinates."""
+        return x * tile_size + tile_size // 2
 
     def setup(self, file_path: str = "maps/map1.txt") -> None:
         """Set up the game here."""
@@ -127,6 +194,11 @@ class GameView(arcade.View):
         self.exit_list = arcade.SpriteList(use_spatial_hash=True)
         self.Entities = arcade.SpriteList()
         self.platform_list = arcade.SpriteList(use_spatial_hash=True)
+        self.switch_list = arcade.SpriteList(use_spatial_hash=True)
+        self.gate_list = arcade.SpriteList(use_spatial_hash=True)
+        self.switch_infos: dict[tuple[int, int], SWITCH] = {}  # Ensure attribute exists before use
+        self.sprite_to_switch_info: dict[arcade.Sprite, SWITCH] = {}
+
 
         self.sword = arcade.Sprite(
             WEAPON["sword"],
@@ -149,20 +221,30 @@ class GameView(arcade.View):
         # Choix par convention
         tile_size = 64
 
-        width, height, map_data, next_map = self.read_map(file_path)
+        width, height, map_data, next_map,switches,gates = self.read_map(file_path)
         max_x=tile_size * width
         max_y=tile_size * height
 
+
         self.camera_bounds = arcade.LRBT(
         WINDOW_WIDTH / 2.0,
-        max_x - WINDOW_WIDTH / 2.0,
+        max_x ,
         WINDOW_HEIGHT / 2.0,
         max_y ,
         )
-    
         
-
         self.next_map = next_map
+    
+        for switch_conf in switches:
+            switch_pos = (switch_conf["x"], switch_conf["y"])
+            self.switch_infos[switch_pos] = switch_conf
+      
+        self.gate_states = {}
+        for gate_conf in gates:
+            gate_pos = (gate_conf["x"], gate_conf["y"])
+            is_open = (gate_conf.get("state", "closed") == "open")
+            self.gate_states[gate_pos] = is_open 
+
 
         NO_LEFT_BOUNDS = width 
         NO_RIGHT_BOUNDS = 0
@@ -175,7 +257,7 @@ class GameView(arcade.View):
             if  map_data[start_y][start_x]  in ASSETS and map_data[start_y][start_x] not in {"*", "S"}:
                 # Initialize BFS
                 queue = [(start_x, start_y)]
-                visited = {(start_x, start_y)}
+                visit = {(start_x, start_y)}
                 while queue:
                     x, y = queue.pop(0)
                     connected_components.append((x, y))
@@ -184,14 +266,14 @@ class GameView(arcade.View):
                         new_y = y + dy
                     # Correct bounds check
                         if  0 <= new_y < height and 0 <= new_x < width :
-                            if (new_x, new_y) not in visited and map_data[new_y][new_x] in ASSETS and map_data[new_y][new_x] not in {"*", "S"}:
+                            if (new_x, new_y) not in visit and map_data[new_y][new_x] in ASSETS and map_data[new_y][new_x] not in {"*", "S","|"}:
                                 queue.append((new_x, new_y))
-                                visited.add((new_x, new_y))
+                                visit.add((new_x, new_y))
                         else :
                             continue
             return connected_components
         
-        def calculate_platforms_bounds (connected_components: list[tuple[int, int]]) -> dict[Arrow, int]:
+        def calculate_platforms_bounds(connected_components: list[tuple[int, int]]) -> dict[Arrow, int]:
             """Calculate the bounds of the platforms."""
 
             NO_LEFT_BOUNDS = width 
@@ -265,7 +347,7 @@ class GameView(arcade.View):
                                    check_limit_d -= 1
             return Bounds 
         
-        def calculate_platforms_borders (connected_components: list[tuple[int, int]]) -> tuple[int, int, int, int]:
+        def calculate_platforms_borders(connected_components: list[tuple[int, int]]) -> tuple[int, int, int, int]:
             """Calculate the borders of the platforms."""
             left = min(x for x, y in connected_components)
 
@@ -277,76 +359,88 @@ class GameView(arcade.View):
 
             return left, right, up, down
         
-        def coordinate(x: int) -> int:
-            """Convert tile coordinates to pixel coordinates."""
-            return x * tile_size + tile_size // 2 
-        
         visited = set()
-        ## Loop through the map data and create the appropriate sprites
-        for  y in range(height):
-
+        for y in range(height):
+            print("DEBUG:",map_data[y])  # Add this line for debugging
             for x in range(width):
-                
                 tile = map_data[y][x]
+                print(f"DEBUG: (x={x}, y={y}) tile='{tile}'")  # Add this line for debugging
 
                 if (x,y) in visited:
                     continue
                 
                 if tile == "S"  and (x,y) not in visited:
                     # Create the player sprite
-                    self.player_sprite = arcade.Sprite(ASSETS[tile], center_x=coordinate(x), center_y=coordinate(y),scale=0.5)
+                    self.player_sprite = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
                 
-                    self.player_sprite.center_x, self.player_sprite.center_y = coordinate(x),coordinate(y)
+                    self.player_sprite.center_x, self.player_sprite.center_y = GameView.coordinate(x, tile_size), GameView.coordinate(y, tile_size)
                 
                     self.player_sprite_list.append(self.player_sprite) if self.player_sprite not in self.player_sprite_list else None
                 
                     visited.add((x, y))
-                    continue
                 
                 if tile == "*"  and (x,y) not in visited:
                 
                     # Create a coin sprite
                 
-                    coin = arcade.Sprite(ASSETS[tile], center_x=coordinate(x), center_y=coordinate(y),scale=0.5)
+                    coin = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
                 
                     self.coin_list.append(coin) if coin not in self.coin_list else None
                 
                     visited.add((x, y))
                 
-                    continue
 
                 if tile == "o" and (x,y) not in visited:
                     
                         # Create an entity sprite
                     
-                        blob = Blob(coordinate(x), coordinate(y),self)
+                    blob = Blob(GameView.coordinate(x, tile_size), GameView.coordinate(y, tile_size), self)
                     
-                        self.Entities.append(blob) if blob not in self.Entities else None
+                    self.Entities.append(blob) if blob not in self.Entities else None
                     
-                        visited.add((x, y))
+                    visited.add((x, y))
                     
-                        continue
                 
                 if tile =="v" and (x,y) not in visited:
                         
                             # Create an entity sprite
                         
-                            bat = Bat(coordinate(x), coordinate(y),self)
+                        bat = Bat(GameView.coordinate(x, tile_size), GameView.coordinate(y, tile_size), self)
                         
-                            self.Entities.append(bat) if bat not in self.Entities else None
+                        self.Entities.append(bat) if bat not in self.Entities else None
                         
-                            visited.add((x, y))
+                        visited.add((x, y))
+                    
+                
+                if tile == "G" and (x,y) not in visited:
                         
-                            continue
+                            # Create an entity sprite
+                        
+                        ghost = Ghost(GameView.coordinate(x, tile_size), GameView.coordinate(y, tile_size), self)
+                        
+                        self.Entities.append(ghost) if ghost not in self.Entities else None
+                        
+                        visited.add((x, y))
+                        
+                
+                if tile == "|" and (x, y) not in visited:
+                    # Draw the gate: open if specified as open in gate_states, otherwise closed by default
+                    is_open = self.gate_states.get((x, y), False)
+                    print(is_open)
+                    if not is_open:
+                        gate = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                        self.gate_list.append(gate)
+                        self.wall_list.append(gate) if gate not in self.wall_list else None
+                    visited.add((x, y))
                 
                 
-                if tile in ASSETS and tile not in {"*", "S"}:
+                if tile in ASSETS and tile not in {"*", "S","|"} and (x, y) not in visited:
                 
                     Block = bfs_connected_components(x, y)
                 
                     if Block:
                 
-                        Bounds= calculate_platforms_bounds(Block)
+                        Bounds = calculate_platforms_bounds(Block)
                 
                         left_side, right_side, up_side, down_side = calculate_platforms_borders(Block)
                 
@@ -366,17 +460,32 @@ class GameView(arcade.View):
 
                                 tile = map_data[y][x]
 
-                                if (x,y) not in visited:
+                                if (x, y) not in visited:
 
-                                    platform = arcade.Sprite(ASSETS[tile], center_x=coordinate(x), center_y=coordinate(y),scale=0.5)
+                                    if tile == "^":
 
-                                    platform.change_x = PLATFORM_MOVEMENT_SPEED_L
+                                        switch_data = self.switch_infos.get((x, y), None)
+                                        if switch_data is None:
+                                            raise ValueError(f"missing configuraion for switch at {(x, y)}")
+                                        switch_state = switch_data["state"]
+                                        sprite = ASSETS[tile] if switch_state == "off" else ":resources:/images/tiles/leverRight.png" 
+                                        switch = arcade.Sprite(sprite, center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                        self.switch_list.append(switch) if switch not in self.switch_list else None
+                                        self.sprite_to_switch_info[switch] = switch_data
+                                    
+                                    else:
 
-                                    platform.boundary_right = coordinate(x) + max(coordinate(Bounds[Arrow.RIGHT])-coordinate(right_side),0)
+                                        platform = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
 
-                                    platform.boundary_left = coordinate(x) + min(-coordinate(left_side) + coordinate(Bounds[Arrow.LEFT]),0)
+                                        platform.change_x = -PLATFORM_MOVEMENT_SPEED_L
 
-                                    self.platform_list.append(platform) if platform not in self.platform_list else None
+                                        platform.boundary_right = GameView.coordinate(x, tile_size) + max(GameView.coordinate(Bounds[Arrow.RIGHT] + 0.5, tile_size) - GameView.coordinate(right_side, tile_size), 0)
+
+                                        platform.boundary_left = GameView.coordinate(x, tile_size) + min(GameView.coordinate(Bounds[Arrow.LEFT] - 0.5, tile_size) - GameView.coordinate(left_side, tile_size), 0)
+                                    
+
+
+                                        self.platform_list.append(platform) if platform not in self.platform_list else None
 
                                     if tile == "£":
 
@@ -394,53 +503,41 @@ class GameView(arcade.View):
                         if Bounds[Arrow.UP] != NO_UP_BOUNDS or Bounds[Arrow.DOWN] != NO_DOWN_BOUNDS:
 
                             for coordinates in Block:
-
                                 x, y = coordinates
 
                                 tile = map_data[y][x]
 
-                                if (x,y) not in visited:
+                                if tile == "^":
+                                    switch_data = self.switch_infos.get((x, y), None)
+                                    if switch_data is None:
+                                        raise ValueError(f"missing configuraion for switch at {(x, y)}")
+                                    switch_state = switch_data["state"]
+                                    sprite = ASSETS[tile] if switch_state == "off" else ":resources:/images/tiles/leverRight.png" 
+                                    switch = arcade.Sprite(sprite, center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                    self.switch_list.append(switch) if switch not in self.switch_list else None
+                                    self.sprite_to_switch_info[switch] = switch_data
+                                
+                                else:
 
-                                    # Create a platform sprite
-                                    if tile != "£" and tile != "E":
+                                    platform = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
 
-                                        platform = arcade.Sprite(ASSETS[tile], center_x=coordinate(x), center_y=coordinate(y),scale=0.5)
-
-                                        platform.change_y = PLATFORM_MOVEMENT_SPEED_V
+                                    platform.change_y = PLATFORM_MOVEMENT_SPEED_V
                                     
-                                        platform.boundary_top= coordinate(y) + max(coordinate(Bounds[Arrow.UP])-coordinate(up_side),0)
+                                    platform.boundary_top = GameView.coordinate(y, tile_size) + max(GameView.coordinate(Bounds[Arrow.UP] + 0.5, tile_size) - GameView.coordinate(up_side, tile_size), 0)
                                     
-                                        platform.boundary_bottom = coordinate(y) + min(coordinate(Bounds[Arrow.DOWN])-coordinate(down_side),0)
+                                    platform.boundary_bottom = GameView.coordinate(y, tile_size) + min(GameView.coordinate(Bounds[Arrow.DOWN] - 0.5, tile_size) - GameView.coordinate(down_side, tile_size), 0)
                                     
-                                        self.platform_list.append(platform) if platform not in self.platform_list else None
-                                    
-                                    
+                                    self.platform_list.append(platform) if platform not in self.platform_list else None
                                     
                                     if tile == "£":
-
-                                        platform = arcade.Sprite(ASSETS[tile], center_x=coordinate(x), center_y=coordinate(y),scale=0.5)
-
-                                        platform.change_y = PLATFORM_MOVEMENT_SPEED_V
-
-                                        platform.boundary_top= coordinate(y) + max(coordinate(Bounds[Arrow.UP])-coordinate(up_side),0)
-
-                                        platform.boundary_bottom = coordinate(y) + min(coordinate(Bounds[Arrow.DOWN])-coordinate(down_side),0)
 
                                         self.lava_list.append(platform) if platform not in self.lava_list else None
                                     
                                     if tile == "E" :
 
-                                        exit = arcade.Sprite(ASSETS[tile], center_x=coordinate(x), center_y=coordinate(y),scale=0.5)
+                                        self.exit_list.append(platform) if platform not in self.exit_list else None
 
-                                        exit.change_y = PLATFORM_MOVEMENT_SPEED_V
-
-                                        exit.boundary_top= coordinate(y) + max(coordinate(Bounds[Arrow.UP])-coordinate(up_side),0)
-
-                                        exit.boundary_bottom = coordinate(y) + min(coordinate(Bounds[Arrow.DOWN])-coordinate(down_side),0)
-
-                                        self.exit_list.append(exit) if exit not in self.exit_list else None
-
-                                    visited.add((x, y))
+                                visited.add((x, y))
 
                         # Create a wall sprite
                         else :
@@ -451,33 +548,46 @@ class GameView(arcade.View):
                        
                                 tile = map_data[y][x]
                        
-                                if (x,y) not in visited:
+                                if (x, y) not in visited:
                        
                                     if tile == "£":
                        
-                                        lava = arcade.Sprite(ASSETS[tile], center_x=coordinate(x), center_y=coordinate(y),scale=0.5)
+                                        lava = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
                        
                                         self.lava_list.append(lava) if lava not in self.lava_list else None
 
                                         visited.add((x, y))
-                                        continue
+                                    
                        
-                                    if tile == "E":
+                                    elif tile == "E":
                        
-                                        exit = arcade.Sprite(ASSETS[tile], center_x=coordinate(x), center_y=coordinate(y),scale=0.5)
+                                        exit = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
                        
                                         self.exit_list.append(exit) if exit not in self.exit_list else None
 
                                         visited.add((x, y))
-                                        continue
+                                        
+
+                                    elif tile == "^":
+                                        switch_data = self.switch_infos.get((x, y), None)
+                                        if switch_data is None:
+                                            raise ValueError(f"missing configuraion for switch at {(x, y)}")
+                                        switch_state = switch_data["state"]
+                                        sprite = ASSETS[tile] if switch_state == "off" else ":resources:/images/tiles/leverRight.png" 
+                                        switch = arcade.Sprite(sprite, center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                        self.switch_list.append(switch) if switch not in self.switch_list else None
+                                        self.sprite_to_switch_info[switch] = switch_data
+                                        visited.add((x, y))
+                                       
                        
                                     else :
                        
-                                        wall = arcade.Sprite(ASSETS[tile], center_x=coordinate(x), center_y=coordinate(y),scale=0.5)
+                                        wall = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
                        
                                         self.wall_list.append(wall) if wall not in self.wall_list else None
 
                                         visited.add((x, y))
+
 
 
         self.physics_engine = arcade.PhysicsEnginePlatformer(
@@ -488,6 +598,47 @@ class GameView(arcade.View):
         )
         self.physics_engine.disable_multi_jump()
 
+        # Add a cooldown timer for sword-switch collision
+        self._last_sword_switch_time = 0.0
+
+    def run_switch(self, switch: arcade.Sprite) -> None:
+        switch_info = self.sprite_to_switch_info.get(switch)
+        if not switch_info or not switch_info.get("enabled", False):
+            return
+
+        current_state = switch_info["state"]
+        new_state: Literal["on", "off"] = "off" if current_state == "on" else "on"
+        switch_info["state"] = new_state
+
+        # Update the lever sprite image based on the new state
+        if new_state == "on":
+            switch.texture = arcade.load_texture(":resources:/images/tiles/leverRight.png")
+        else:
+            switch.texture = arcade.load_texture(":resources:/images/tiles/leverLeft.png")
+
+        actions = switch_info["switch_on"] if new_state == "on" else switch_info["switch_off"]
+        for action in actions:
+            coord = (action["x"], action["y"])
+            if action["action"] == "open-gate":
+                self.gate_states[coord] = True
+                # Remove the gate sprite at this position if it exists
+                for gate in list(self.gate_list):
+                    if int(gate.center_x) == int(GameView.coordinate(coord[0])) and int(gate.center_y) == int(GameView.coordinate(coord[1])):
+                        gate.remove_from_sprite_lists()
+            elif action["action"] == "close-gate":
+                self.gate_states[coord] = False
+                # Only add a gate sprite if not already present
+                already_exists = any(
+                    int(gate.center_x) == int(GameView.coordinate(coord[0])) and int(gate.center_y) == int(GameView.coordinate(coord[1]))
+                    for gate in self.gate_list
+                )
+                if not already_exists:
+                    gate_sprite = arcade.Sprite(ASSETS["|"], center_x=GameView.coordinate(coord[0]), center_y=GameView.coordinate(coord[1]), scale=0.5)
+                    self.gate_list.append(gate_sprite)
+                    self.wall_list.append(gate_sprite) if gate_sprite not in self.wall_list else None
+            elif action["action"] == "disable":
+                switch_info["enabled"] = False
+
     def on_draw(self) -> None:
         """Render the screen."""
         self.clear() # always start with self.clear()
@@ -497,7 +648,10 @@ class GameView(arcade.View):
         self.coin_list.draw()
         self.player_sprite_list.draw()
         self.lava_list.draw()
+        self.exit_list.draw()
         self.platform_list.draw()
+        self.switch_list.draw()
+        self.gate_list.draw()
         with self.camera_score.activate():
             w, h = arcade.get_window().get_size()
             SCORE_TEXT = f"SCORE {self.score}"
@@ -517,10 +671,13 @@ class GameView(arcade.View):
             )
     
     def check_for_gameover(self)-> None :
-        if len(arcade.check_for_collision_with_list(self.player_sprite, self.lava_list)) != 0 :
+
+        touched_lava = any(lava.collides_with_point((self.player_sprite.center_x, self.player_sprite.bottom - 1)) for lava in self.lava_list)
+        if touched_lava :
             arcade.play_sound(self.gameover_sound,loop=False)
             self.score = 0
             self.setup()
+
         if len(arcade.check_for_collision_with_list(self.player_sprite, self.Entities)) != 0 :
             arcade.play_sound(self.gameover_sound,loop=False)
             self.score = 0
@@ -651,12 +808,10 @@ class GameView(arcade.View):
                 new_arrow.center_x = self.player_sprite.center_x
                 new_arrow.center_y = self.player_sprite.center_y
 
-                # Calculate the angle of the arrow towards the stored target
+                # Calculate the arrow's velocity based on the bowArrow's angle
                 arrow_angle = -math.degrees(math.atan2(self.arrow_target_y - self.player_sprite.center_y,
                                                        self.arrow_target_x - self.player_sprite.center_x))
                 new_arrow.angle = arrow_angle
-
-                # Set the arrow's velocity
                 new_arrow.change_x = ARROW_SPEED * math.cos(math.radians(arrow_angle))
                 new_arrow.change_y = -ARROW_SPEED * math.sin(math.radians(arrow_angle))
 
@@ -701,16 +856,11 @@ class GameView(arcade.View):
         # Update entities
         for entities in self.Entities:
             entities.on_update(delta_time)
-
-        if arcade.check_for_collision_with_list(self.player_sprite, self.exit_list):
-            try :
+        if self.exit_list:
+            if math.dist((self.player_sprite.center_x, self.player_sprite.center_y),( self.exit_list[0].center_x, self.exit_list[0].center_y)) <= 64 :
                 arcade.play_sound(self.next_level, loop=False)
                 self.setup(self.next_map)
-            except:
-                # If the next map is not found, print a message and close the game
-                print("You have completed the game!")
-                arcade.exit()
-
+            
         # Update all arrows in the sprite list
         arrows_to_remove: arcade.SpriteList[arcade.Sprite] = arcade.SpriteList()  # Track arrows to remove
         for arrow in self.player_sprite_list:
@@ -719,14 +869,27 @@ class GameView(arcade.View):
                     arrow.change_y -= ARROW_GRAVITY  # Apply gravity
                     # Check for collisions or if the arrow goes out of bounds
                     combined_spritelist: arcade.SpriteList[arcade.Sprite] = arcade.SpriteList()
-                    for spritelist in (self.lava_list, self.wall_list, self.platform_list):
-                        combined_spritelist.extend(spritelist)
-                    if arcade.check_for_collision_with_list(arrow, combined_spritelist):
-                        arrows_to_remove.append(arrow)
+                    if arcade.check_for_collision_with_list(arrow, self.wall_list):
+                        # If the arrow hits a wall, remove it
+                        arrows_to_remove.append(arrow) if arrow not in arrows_to_remove else None
+                    elif arcade.check_for_collision_with_list(arrow, self.lava_list):
+                        # If the arrow hits lava, remove it
+                        arrows_to_remove.append(arrow) if arrow not in arrows_to_remove else None
+                    elif arcade.check_for_collision_with_list(arrow, self.exit_list):
+                        # If the arrow hits the exit, remove it
+                        arrows_to_remove.append(arrow) if arrow not in arrows_to_remove else None
+                    elif arcade.check_for_collision_with_list(arrow, self.platform_list):
+                        # If the arrow hits a platform, remove it
+                        arrows_to_remove.append(arrow) if arrow not in arrows_to_remove else None
                     if arcade.check_for_collision_with_list(arrow, self.Entities):
                         # If the arrow hits an entity, remove it
                         hit_entity = arcade.check_for_collision_with_list(arrow, self.Entities)[0]
                         hit_entity.remove_from_sprite_lists()
+                        arrows_to_remove.append(arrow) if arrow not in arrows_to_remove else None
+                    if arcade.check_for_collision_with_list(arrow, self.switch_list):
+                        # If the arrow hits a switch, run the switch
+                        hit_switch = arcade.check_for_collision_with_list(arrow, self.switch_list)[0]
+                        self.run_switch(hit_switch)
                         arrows_to_remove.append(arrow) if arrow not in arrows_to_remove else None
                 else:
                     arrows_to_remove.append(arrow)
@@ -750,6 +913,13 @@ class GameView(arcade.View):
                 hit_with_sword = arcade.check_for_collision_with_list(self.sword, self.Entities)
                 for monster in hit_with_sword:
                     monster.remove_from_sprite_lists()
+                # Add cooldown for sword-switch collision
+                now = time.time()
+                if now - self._last_sword_switch_time > 0.25:
+                    hit_sword_switch = arcade.check_for_collision_with_list(self.sword, self.switch_list)
+                    for switch in hit_sword_switch:
+                        self.run_switch(switch)
+                    self._last_sword_switch_time = now
 
 
 
