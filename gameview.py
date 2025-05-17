@@ -125,17 +125,27 @@ class GameView(arcade.View):
         """read and analyse the map."""
     
         with open(file_path, 'r', encoding="utf-8", newline='\n') as f:
-            documents = list(yaml.safe_load_all(f))
-            config = documents[0]
-            map_lines = "\n".join(documents[1])
+            lines =f.readlines()
 
+        sep_index = None
+        for idx, line in enumerate(lines):
+            if line.strip() == "---":
+                sep_index = idx
+                break
+
+        if sep_index is None:
+            raise ValueError("No map separator '---' found in file")
         
-
+        yaml_text = "".join (lines[:sep_index])
+        config = yaml.safe_load(yaml_text)
         # Configuration
         width = config.get("width",0)
         height = config.get("height",0)
         next_map = config.get("next_map"," ")
         switches_ = config.get("switches", [])
+        gates = config.get("gates", [])
+
+
         switches : list[SWITCH] = []
         for yaml_switch in switches_:
             x = int(yaml_switch["x"])
@@ -174,9 +184,16 @@ class GameView(arcade.View):
                 "switch_off": switch_off,
                 "enabled": True,
             })
-        gates = config.get("gates", [])
-        
-        map_data = [line.rstrip().ljust(width) for line in map_lines.splitlines()]       
+
+        idx += 1
+        map_data = []
+
+        # Characters
+        while idx < len(lines)  and lines[idx].rstrip() != "---":
+            lines[idx] = lines[idx].rstrip().ljust(width)
+            map_data.append(lines[idx])
+            idx += 1
+                   
         map_data = list(reversed(map_data))
         return width, height, map_data, next_map, switches, gates
     
@@ -188,13 +205,6 @@ class GameView(arcade.View):
         """Set up the game here."""
 
         self.score = 0
-
-        self.player_sprite = arcade.Sprite(
-            ":resources:images/animated_characters/female_adventurer/femaleAdventurer_idle.png",
-            center_x=400,
-            center_y=465 ,
-            scale = 0.5
-        )
         
         self.sword = arcade.Sprite(
             WEAPON["sword"],
@@ -217,7 +227,6 @@ class GameView(arcade.View):
         self.active_weapon_sprite = self.bow
 
         self.player_sprite_list= arcade.SpriteList()
-        self.player_sprite_list.append(self.player_sprite)
         self.wall_list = arcade.SpriteList(use_spatial_hash=True)
         self.coin_list = arcade.SpriteList(use_spatial_hash=True)
         self.lava_list = arcade.SpriteList(use_spatial_hash=True)
@@ -755,13 +764,19 @@ class GameView(arcade.View):
         
 
         for Switch in self.switch_list:
-            if arcade.check_for_collision(self.arrow, Switch) or arcade.check_for_collision(self.sword, Switch):
+            if arcade.check_for_collision(self.arrow, Switch):
+                print("Switched by arrow")
+                self.arrow.remove_from_sprite_lists()
                 self.run_switch(Switch)
+            if arcade.check_for_collision(self.sword, Switch):
+                print("Switched by sword")
+                self.run_switch(Switch)
+
         
-        if self.arrow in self.player_sprite_list:
-            for Gate in self.gate_list:
-                if arcade.check_for_collision(self.arrow, Gate):
-                    self.arrow.remove_from_sprite_lists()
+        
+        for Gate in self.gate_list:
+            if arcade.check_for_collision(self.arrow, Gate):
+                self.arrow.remove_from_sprite_lists()
         
 
 
