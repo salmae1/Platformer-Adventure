@@ -254,7 +254,7 @@ class GameView(arcade.View):
         def bfs_connected_components(start_x: int, start_y: int) -> list[tuple[int, int]]:
             """Find connected components using BFS."""
             connected_components = []
-            if  map_data[start_y][start_x]  in ASSETS and map_data[start_y][start_x] not in {"*", "S"}:
+            if  map_data[start_y][start_x]  in ASSETS and map_data[start_y][start_x] not in {"*", "S","|"}:
                 # Initialize BFS
                 queue = [(start_x, start_y)]
                 visit = {(start_x, start_y)}
@@ -360,16 +360,16 @@ class GameView(arcade.View):
             return left, right, up, down
         
         visited = set()
-        for y in range(height):
-            print("DEBUG:",map_data[y])  # Add this line for debugging
-            for x in range(width):
-                tile = map_data[y][x]
-                print(f"DEBUG: (x={x}, y={y}) tile='{tile}'")  # Add this line for debugging
+        for y in range(len(map_data)):
+            row=map_data[y]
+            print("")  # Use actual map_data length, not height
+            for x in range(len(row)):
+                tile = row[x]
+                print(tile,end=" ")
 
-                if (x,y) in visited:
+                if (x, y) in visited:
                     continue
-                
-                if tile == "S"  and (x,y) not in visited:
+                elif tile == "S" and (x, y) not in visited:
                     # Create the player sprite
                     self.player_sprite = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
                 
@@ -378,9 +378,7 @@ class GameView(arcade.View):
                     self.player_sprite_list.append(self.player_sprite) if self.player_sprite not in self.player_sprite_list else None
                 
                     visited.add((x, y))
-                
-                if tile == "*"  and (x,y) not in visited:
-                
+                elif tile == "*" and (x, y) not in visited:
                     # Create a coin sprite
                 
                     coin = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
@@ -388,22 +386,16 @@ class GameView(arcade.View):
                     self.coin_list.append(coin) if coin not in self.coin_list else None
                 
                     visited.add((x, y))
-                
-
-                if tile == "o" and (x,y) not in visited:
-                    
-                        # Create an entity sprite
+                elif tile == "o" and (x, y) not in visited:
+                    # Create an entity sprite
                     
                     blob = Blob(GameView.coordinate(x, tile_size), GameView.coordinate(y, tile_size), self)
                     
                     self.Entities.append(blob) if blob not in self.Entities else None
                     
                     visited.add((x, y))
-                    
-                
-                if tile =="v" and (x,y) not in visited:
-                        
-                            # Create an entity sprite
+                elif tile == "v" and (x, y) not in visited:
+                    # Create an entity sprite
                         
                         bat = Bat(GameView.coordinate(x, tile_size), GameView.coordinate(y, tile_size), self)
                         
@@ -412,34 +404,26 @@ class GameView(arcade.View):
                         visited.add((x, y))
                     
                 
-                if tile == "G" and (x,y) not in visited:
-                        
-                            # Create an entity sprite
+                elif tile == "G"  and (x, y) not in visited:
+                    # Create an entity sprite
                         
                         ghost = Ghost(GameView.coordinate(x, tile_size), GameView.coordinate(y, tile_size), self)
                         
                         self.Entities.append(ghost) if ghost not in self.Entities else None
                         
                         visited.add((x, y))
-                        
-                
-                if tile == "|" and (x, y) not in visited:
-                    # Draw the gate: open if specified as open in gate_states, otherwise closed by default
+                elif tile == "|" and (x, y) not in visited:
+                    # Only spawn a gate if it is not open
                     is_open = self.gate_states.get((x, y), False)
-                    print(is_open)
                     if not is_open:
                         gate = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
                         self.gate_list.append(gate)
-                        self.wall_list.append(gate) if gate not in self.wall_list else None
-                    visited.add((x, y))
-                
-                
-                if tile in ASSETS and tile not in {"*", "S","|"} and (x, y) not in visited:
-                
+                        self.wall_list.append(gate)
+                        visited.add((x, y))
+
+                elif tile in ASSETS and tile not in {"*", "S", "|"} and (x, y) not in visited:
                     Block = bfs_connected_components(x, y)
-                
                     if Block:
-                
                         Bounds = calculate_platforms_bounds(Block)
                 
                         left_side, right_side, up_side, down_side = calculate_platforms_borders(Block)
@@ -456,32 +440,32 @@ class GameView(arcade.View):
                 
                             for coordinates in Block:
                 
-                                x, y = coordinates
+                                cx, cy = coordinates
 
-                                tile = map_data[y][x]
+                                tile = map_data[cy][cx]
 
-                                if (x, y) not in visited:
+                                if (cx, cy) not in visited:
 
                                     if tile == "^":
 
-                                        switch_data = self.switch_infos.get((x, y), None)
+                                        switch_data = self.switch_infos.get((cx, cy), None)
                                         if switch_data is None:
-                                            raise ValueError(f"missing configuraion for switch at {(x, y)}")
+                                            raise ValueError(f"missing configuraion for switch at {(cx, cy)}")
                                         switch_state = switch_data["state"]
                                         sprite = ASSETS[tile] if switch_state == "off" else ":resources:/images/tiles/leverRight.png" 
-                                        switch = arcade.Sprite(sprite, center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                        switch = arcade.Sprite(sprite, center_x=GameView.coordinate(cx, tile_size), center_y=GameView.coordinate(cy, tile_size), scale=0.5)
                                         self.switch_list.append(switch) if switch not in self.switch_list else None
                                         self.sprite_to_switch_info[switch] = switch_data
                                     
                                     else:
 
-                                        platform = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                        platform = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(cx, tile_size), center_y=GameView.coordinate(cy, tile_size), scale=0.5)
 
                                         platform.change_x = -PLATFORM_MOVEMENT_SPEED_L
 
-                                        platform.boundary_right = GameView.coordinate(x, tile_size) + max(GameView.coordinate(Bounds[Arrow.RIGHT] + 0.5, tile_size) - GameView.coordinate(right_side, tile_size), 0)
+                                        platform.boundary_right = GameView.coordinate(cx, tile_size) + max(GameView.coordinate(Bounds[Arrow.RIGHT] + 0.5, tile_size) - GameView.coordinate(right_side, tile_size), 0)
 
-                                        platform.boundary_left = GameView.coordinate(x, tile_size) + min(GameView.coordinate(Bounds[Arrow.LEFT] - 0.5, tile_size) - GameView.coordinate(left_side, tile_size), 0)
+                                        platform.boundary_left = GameView.coordinate(cx, tile_size) + min(GameView.coordinate(Bounds[Arrow.LEFT] - 0.5, tile_size) - GameView.coordinate(left_side, tile_size), 0)
                                     
 
 
@@ -492,40 +476,39 @@ class GameView(arcade.View):
                                         self.lava_list.append(platform) if platform not in self.lava_list else None
 
                                     if tile == "E":
-                                        print("exit : ",(x,y))
 
                                         self.exit_list.append(platform) if platform not in self.exit_list else None
 
-                                    visited.add((x, y))
+                                    visited.add((cx, cy))
 
 
 
                         if Bounds[Arrow.UP] != NO_UP_BOUNDS or Bounds[Arrow.DOWN] != NO_DOWN_BOUNDS:
 
                             for coordinates in Block:
-                                x, y = coordinates
+                                cx, cy = coordinates
 
-                                tile = map_data[y][x]
+                                tile = map_data[cy][cx]
 
                                 if tile == "^":
-                                    switch_data = self.switch_infos.get((x, y), None)
+                                    switch_data = self.switch_infos.get((cx, cy), None)
                                     if switch_data is None:
-                                        raise ValueError(f"missing configuraion for switch at {(x, y)}")
+                                        raise ValueError(f"missing configuraion for switch at {(cx,cy)}")
                                     switch_state = switch_data["state"]
                                     sprite = ASSETS[tile] if switch_state == "off" else ":resources:/images/tiles/leverRight.png" 
-                                    switch = arcade.Sprite(sprite, center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                    switch = arcade.Sprite(sprite, center_x=GameView.coordinate(cx, tile_size), center_y=GameView.coordinate(cy, tile_size), scale=0.5)
                                     self.switch_list.append(switch) if switch not in self.switch_list else None
                                     self.sprite_to_switch_info[switch] = switch_data
                                 
                                 else:
 
-                                    platform = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                    platform = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(cx, tile_size), center_y=GameView.coordinate(cy, tile_size), scale=0.5)
 
                                     platform.change_y = PLATFORM_MOVEMENT_SPEED_V
                                     
-                                    platform.boundary_top = GameView.coordinate(y, tile_size) + max(GameView.coordinate(Bounds[Arrow.UP] + 0.5, tile_size) - GameView.coordinate(up_side, tile_size), 0)
+                                    platform.boundary_top = GameView.coordinate(cy, tile_size) + max(GameView.coordinate(Bounds[Arrow.UP] + 0.5, tile_size) - GameView.coordinate(up_side, tile_size), 0)
                                     
-                                    platform.boundary_bottom = GameView.coordinate(y, tile_size) + min(GameView.coordinate(Bounds[Arrow.DOWN] - 0.5, tile_size) - GameView.coordinate(down_side, tile_size), 0)
+                                    platform.boundary_bottom = GameView.coordinate(cy, tile_size) + min(GameView.coordinate(Bounds[Arrow.DOWN] - 0.5, tile_size) - GameView.coordinate(down_side, tile_size), 0)
                                     
                                     self.platform_list.append(platform) if platform not in self.platform_list else None
                                     
@@ -537,56 +520,57 @@ class GameView(arcade.View):
 
                                         self.exit_list.append(platform) if platform not in self.exit_list else None
 
-                                visited.add((x, y))
+                                visited.add((cx, cy))
 
                         # Create a wall sprite
                         else :
                        
                             for coordinates in Block:
                        
-                                x, y = coordinates
+                                cx,cy = coordinates
                        
-                                tile = map_data[y][x]
+                                tile = map_data[cy][cx]
+                        
                        
-                                if (x, y) not in visited:
+                                if (cx, cy) not in visited:
                        
                                     if tile == "£":
                        
-                                        lava = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                        lava = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(cx, tile_size), center_y=GameView.coordinate(cy, tile_size), scale=0.5)
                        
                                         self.lava_list.append(lava) if lava not in self.lava_list else None
 
-                                        visited.add((x, y))
+                                        visited.add((cx,cy))
                                     
                        
                                     elif tile == "E":
                        
-                                        exit = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                        exit = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(cx, tile_size), center_y=GameView.coordinate(cy, tile_size), scale=0.5)
                        
                                         self.exit_list.append(exit) if exit not in self.exit_list else None
 
-                                        visited.add((x, y))
+                                        visited.add((cx, cy))
                                         
 
                                     elif tile == "^":
-                                        switch_data = self.switch_infos.get((x, y), None)
+                                        switch_data = self.switch_infos.get((cx, cy), None)
                                         if switch_data is None:
-                                            raise ValueError(f"missing configuraion for switch at {(x, y)}")
+                                            raise ValueError(f"missing configuraion for switch at {(cx, cy)}")
                                         switch_state = switch_data["state"]
                                         sprite = ASSETS[tile] if switch_state == "off" else ":resources:/images/tiles/leverRight.png" 
-                                        switch = arcade.Sprite(sprite, center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                        switch = arcade.Sprite(sprite, center_x=GameView.coordinate(cx, tile_size), center_y=GameView.coordinate(cy, tile_size), scale=0.5)
                                         self.switch_list.append(switch) if switch not in self.switch_list else None
                                         self.sprite_to_switch_info[switch] = switch_data
-                                        visited.add((x, y))
+                                        visited.add((cx, cy))
                                        
                        
                                     else :
                        
-                                        wall = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(x, tile_size), center_y=GameView.coordinate(y, tile_size), scale=0.5)
+                                        wall = arcade.Sprite(ASSETS[tile], center_x=GameView.coordinate(cx, tile_size), center_y=GameView.coordinate(cy, tile_size), scale=0.5)
                        
                                         self.wall_list.append(wall) if wall not in self.wall_list else None
 
-                                        visited.add((x, y))
+                                        visited.add((cx, cy))
 
 
 
@@ -606,6 +590,7 @@ class GameView(arcade.View):
         if not switch_info or not switch_info.get("enabled", False):
             return
 
+        # Toggle the switch state
         current_state = switch_info["state"]
         new_state: Literal["on", "off"] = "off" if current_state == "on" else "on"
         switch_info["state"] = new_state
@@ -617,17 +602,17 @@ class GameView(arcade.View):
             switch.texture = arcade.load_texture(":resources:/images/tiles/leverLeft.png")
 
         actions = switch_info["switch_on"] if new_state == "on" else switch_info["switch_off"]
+
+        # Run all actions for the current state (switch_on or switch_off)
         for action in actions:
             coord = (action["x"], action["y"])
             if action["action"] == "open-gate":
                 self.gate_states[coord] = True
-                # Remove the gate sprite at this position if it exists
                 for gate in list(self.gate_list):
                     if int(gate.center_x) == int(GameView.coordinate(coord[0])) and int(gate.center_y) == int(GameView.coordinate(coord[1])):
                         gate.remove_from_sprite_lists()
-            elif action["action"] == "close-gate":
+            if action["action"] == "close-gate":
                 self.gate_states[coord] = False
-                # Only add a gate sprite if not already present
                 already_exists = any(
                     int(gate.center_x) == int(GameView.coordinate(coord[0])) and int(gate.center_y) == int(GameView.coordinate(coord[1]))
                     for gate in self.gate_list
@@ -636,7 +621,7 @@ class GameView(arcade.View):
                     gate_sprite = arcade.Sprite(ASSETS["|"], center_x=GameView.coordinate(coord[0]), center_y=GameView.coordinate(coord[1]), scale=0.5)
                     self.gate_list.append(gate_sprite)
                     self.wall_list.append(gate_sprite) if gate_sprite not in self.wall_list else None
-            elif action["action"] == "disable":
+            if action["action"] == "disable":
                 switch_info["enabled"] = False
 
     def on_draw(self) -> None:
@@ -786,8 +771,8 @@ class GameView(arcade.View):
                     self.player_sprite_list.append(self.bowArrow)
 
                 # Store the target direction for the arrow
-                self.arrow_target_x = x
-                self.arrow_target_y = y
+                self.arrow_target_x = world_x
+                self.arrow_target_y = world_y
 
     def on_mouse_release(self, x: int, y: int, button: int, modifiers: int) -> None:
         """Handle mouse release events."""

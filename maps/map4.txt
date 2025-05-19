@@ -5,6 +5,7 @@ next-map:
                       ↑
  v        o   x  o    ↑   
  x -   ←←xxxxxxx----  ↑ E
-S↓      o      ↓     xxx
+S↓ 
+     o      ↓     xxx
 ====££££====£££===£=====
 ---
