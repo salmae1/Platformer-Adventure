@@ -120,7 +120,7 @@ class GameView(arcade.View):
             raise ValueError("No map separator '---' found in file")
         
         yaml_text = "".join (lines[:sep_index])
-        config = yaml.safe_load(yaml_text)
+        config  = yaml.safe_load(yaml_text)
         # Configuration
         width = config.get("width",0)
         height = config.get("height",0)
@@ -134,8 +134,12 @@ class GameView(arcade.View):
             x = int(yaml_switch["x"])
             y = int(yaml_switch["y"])
             state = yaml_switch.get("state", "off")
-            if state not in ("on", "off"):
-                state = "off"
+            print(x, y, state)
+            # Correct: use the YAML state if present, otherwise default to "off"
+            if state is True:
+                state = "on"
+            # Ensure state is always a string and not None
+            state = str(state)
 
             switch_on: list[ACTION] = []
             for action in yaml_switch.get("switch_on", []):
@@ -162,7 +166,7 @@ class GameView(arcade.View):
             switches.append({
                 "x": x,
                 "y": y,
-                "state": state,
+                "state": state,  # This will now correctly be "on" if set in YAML
                 "switch_on": switch_on,
                 "switch_off": switch_off,
                 "enabled": True,
@@ -238,6 +242,7 @@ class GameView(arcade.View):
         for switch_conf in switches:
             switch_pos = (switch_conf["x"], switch_conf["y"])
             self.switch_infos[switch_pos] = switch_conf
+            print(f"Switch position: {switch_pos}, state: {switch_conf['state']}")
       
         self.gate_states = {}
         for gate_conf in gates:
@@ -495,7 +500,7 @@ class GameView(arcade.View):
                                     if switch_data is None:
                                         raise ValueError(f"missing configuraion for switch at {(cx,cy)}")
                                     switch_state = switch_data["state"]
-                                    sprite = ASSETS[tile] if switch_state == "off" else ":resources:/images/tiles/leverRight.png" 
+                                    sprite = ASSETS[tile] 
                                     switch = arcade.Sprite(sprite, center_x=GameView.coordinate(cx, tile_size), center_y=GameView.coordinate(cy, tile_size), scale=0.5)
                                     self.switch_list.append(switch) if switch not in self.switch_list else None
                                     self.sprite_to_switch_info[switch] = switch_data
