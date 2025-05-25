@@ -98,7 +98,30 @@ class Bat(Entity):
         delta_time = 5/60 
         return super().on_update(delta_time)
 
+class Ghost(Entity):
+    def __init__(self, center_x: float, center_y: float, game_view: arcade.View) -> None:
+        velocity_x = 0
+        velocity_y = 0
+        super().__init__("assets/kenney-extended-enemies-png/ghost.png", center_x, center_y, velocity_x, velocity_y, game_view)
+        self.starting_x = center_x
+        self.starting_y = center_y
 
+    def movement(self) -> None:
+        """ Handles the ghost movement by moving towards the player. """
+        from gameview import GameView
+        self.game: GameView
+
+        # Calculate the distance to the player
+        player_x = self.game.player_sprite.center_x
+        player_y = self.game.player_sprite.center_y
+        distance = math.sqrt((self.center_x - player_x) ** 2 + (self.center_y - player_y) ** 2)
+        # Move towards the player if within a certain range
+        if distance < 300:
+            self.change_x = (player_x - self.center_x) / distance * 2
+            self.change_y = (player_y - self.center_y) / distance * 2
+        else:
+            self.change_x = 0
+            self.change_y = 0
 
 
 
