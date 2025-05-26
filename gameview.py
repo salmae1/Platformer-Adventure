@@ -81,7 +81,7 @@ class GameView(arcade.View):
 
         # Choose a nice comfy background color
         self.background_color = arcade.csscolor.CORNFLOWER_BLUE
-        self.max_lives = 4
+        self.max_lives = 3
 
         # Setup our game
         self.setup()
@@ -215,7 +215,7 @@ class GameView(arcade.View):
 
         for i in range(self.max_lives):
             heart = arcade.Sprite("assets/heart.png", scale=0.09)
-            heart.center_x = WINDOW_WIDTH - 225 - i * 53
+            heart.center_x = WINDOW_WIDTH - 240 - i * 53
             heart.center_y = WINDOW_HEIGHT - 180
             self.heart_list.append(heart)
 
@@ -582,14 +582,17 @@ class GameView(arcade.View):
         print(f"{len(self.switch_list)} switches, {len(self.platform_list)} plateformes ")
 
 
-        self.switch_platform : dict[arcade.Sprite, arcade.Sprite] = {}
+        self.switch_platform: dict[arcade.Sprite, tuple[arcade.Sprite, float, float]] = {}
         for switch in self.switch_list:
-            x_pt = switch.center_x
-            y_pt = switch.center_y - tile_size
-            plateformes_below = arcade.get_sprites_at_point((x_pt, y_pt), self.platform_list)
-            if plateformes_below:
-                self.switch_platform[switch] = plateformes_below[0]
-
+            plats = arcade.get_sprites_at_point(
+                (switch.center_x, switch.center_y - tile_size),
+                self.platform_list
+            )
+            if plats:
+                plat = plats[0]
+                dx = switch.center_x - plat.center_x
+                dy = switch.center_y - plat.center_y
+                self.switch_platform[switch] = (plat, dx, dy)
         
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self.player_sprite,
@@ -603,12 +606,11 @@ class GameView(arcade.View):
         self._last_sword_switch_time = 0.0
     
     def switch_mvt(self) -> None:
-        for switch_sprite, platform_sprite in self.switch_platform.items():
-            switch_sprite.center_x += platform_sprite.change_x
-            switch_sprite.center_y += platform_sprite.change_y
-
-
-
+        for switch_sprite, (platform_sprite, dx, dy) in self.switch_platform.items():
+            if platform_sprite is None:
+                continue
+            switch_sprite.center_x = platform_sprite.center_x + dx
+            switch_sprite.center_y = platform_sprite.center_y + dy
 
     def run_switch(self, switch: arcade.Sprite) -> None:
         switch_info = self.sprite_to_switch_info.get(switch)
@@ -652,6 +654,21 @@ class GameView(arcade.View):
     def on_draw(self) -> None:
         """Render the screen."""
         self.clear() # always start with self.clear()
+        with self.camera_score.activate():
+            w, h = arcade.get_window().get_size()
+            if self.game_over:
+                arcade.set_background_color(arcade.csscolor.CORNFLOWER_BLUE)
+                self.clear()
+                arcade.draw_text("GAME OVER", w / 2, h / 2 + 30,
+                    arcade.color.RED, 50, anchor_x="center")
+                arcade.draw_text("Press SPACE to play", w / 2, h / 2 - 30,
+                    arcade.csscolor.WHITE, 24, anchor_x="center")
+                
+                for i, heart in enumerate(self.heart_list):
+                    heart.alpha = 255 if i < self.lives else 100
+                self.heart_list.draw()
+                return 
+
         self.camera.use()
         self.Entities.draw()
         self.wall_list.draw()
@@ -663,35 +680,24 @@ class GameView(arcade.View):
         self.platform_list.draw()
         self.switch_list.draw()
         self.gate_list.draw()
-        with self.camera_score.activate():
-            w, h = arcade.get_window().get_size()
-            SCORE_TEXT = f"SCORE {self.score}"
-            arcade.draw_text(SCORE_TEXT, w - 150, h - 30, 
-                             arcade.csscolor.WHITE, 18)
-            
-            if self.game_over:
-                arcade.set_background_color(arcade.csscolor.CORNFLOWER_BLUE)
-                self.clear()
-                arcade.draw_text("GAME OVER", w / 2, h / 2,
-                             arcade.color.RED, 50, anchor_x="center")
 
-            if self.active_weapon_index == 0:
-                active_weapon_image = self.sword
-            else:
-                active_weapon_image = self.bowArrow
-            weapon_rect = Rect( left=18, right=18+64, 
-                               bottom=18, top=18+64, 
-                               width=64, height=64,
-                               x=40, y=h-30)
+        with self.camera_score.activate():
+            arcade.draw_text(f"SCORE {self.score}",
+                            self.window.width - 150,
+                            self.window.height - 30,
+                            arcade.csscolor.WHITE, 18)
+
+            active = self.sword if self.active_weapon_index == 0 else self.bowArrow
             arcade.draw_texture_rect(
-                texture=active_weapon_image.texture,
-                rect=weapon_rect
+                texture=active.texture,
+                rect=Rect(left=18, right=18+64,
+                        bottom=18, top=18+64,
+                        width=64, height=64,
+                        x=40, y=self.window.height-30)
             )
+
             for i, heart in enumerate(self.heart_list):
-                if i < self.lives:
-                    heart.alpha = 255 
-                else:
-                    heart.alpha = 100 
+                heart.alpha = 255 if i < self.lives else 100
             self.heart_list.draw()
             
 
@@ -741,6 +747,14 @@ class GameView(arcade.View):
 
     def on_key_press(self, key : int , modifiers :  int ) -> None :
         "Called when the user presses a key on the keyboard"
+
+        if self.game_over and key == arcade.key.SPACE:
+            self.lives = self.max_lives
+            self.score = 0
+            self.game_over = False
+            self.setup()
+            return
+
         match key :
             case arcade.key.RIGHT:
                 #start moving to the right
@@ -883,11 +897,6 @@ class GameView(arcade.View):
         This is where in-world time "advances", or "ticks".
         """
         if self.game_over:
-            if time.time() - self.game_over_time >= 5:
-                self.lives = self.max_lives
-                self.score = 0
-                self.game_over = False
-                self.setup()
             return
         self.physics_engine.update()
 
