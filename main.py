@@ -1,5 +1,5 @@
 import arcade
-from gameview import GameView
+from gameview2 import GameView2
 
 # Constants
 WINDOW_WIDTH = 1280
@@ -12,7 +12,7 @@ def main() -> None:
 
     # Create the (unique) Window, setup our GameView, and launch
     window = arcade.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
-    game_view = GameView()
+    game_view = GameView2()
     window.show_view(game_view)
     arcade.run() 
 

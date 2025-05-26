@@ -34,8 +34,8 @@ class Blob(Entity):
             self.reverse_cooldown -= 1
             self.center_x += self.change_x
             return
-        from gameview import GameView
-        self.game: GameView
+        from gameview2 import GameView2
+        self.game: GameView2
 
         right_hitbox = self.right + self.change_x
         left_hitbox = self.left + self.change_x
@@ -96,6 +96,7 @@ class Bat(Entity):
         return super().on_update(delta_time)
     
 class Ghost(Entity):
+    
     def __init__(self, center_x: float, center_y: float, game_view: arcade.View) -> None:
         velocity_x = 0
         velocity_y = 0
@@ -105,12 +106,12 @@ class Ghost(Entity):
 
     def movement(self) -> None:
         """ Handles the ghost movement by moving towards the player. """
-        from gameview import GameView
-        self.game: GameView
+        from gameview2 import GameView2
+        self.game: GameView2
 
         # Calculate the distance to the player
-        player_x = self.game.player_sprite.center_x
-        player_y = self.game.player_sprite.center_y
+        player_x = self.game.player.center_x
+        player_y = self.game.player.center_y
         distance = math.sqrt((self.center_x - player_x) ** 2 + (self.center_y - player_y) ** 2)
         # Move towards the player if within a certain range
         if distance < 300:
