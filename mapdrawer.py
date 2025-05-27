@@ -5,7 +5,7 @@ from constants import ASSETS, tile_size , Arrow ,Platform , PLATFORM_MOVEMENT_SP
 from Entity import Blob,Bat,Ghost,Entity
 from enum import Enum
 from maploader import SWITCH,GATE
-
+import collectable
 class MapDrawer:
     __map_data: list[str]
     width: Final[int]
@@ -26,7 +26,6 @@ class MapDrawer:
     
     def Platform_to_SpriteList(self,platform:Platform,sprite_list : SpriteList[Sprite],seen:set[tuple[int,int]]) -> None:
         """Get the sprite list from a block."""
-        
         #get the borders of the platform
         l,r,u,d= utils.get_borders(platform.block)
         # Iterate through the block and create sprites
@@ -35,10 +34,10 @@ class MapDrawer:
                 # Get the asset for the tile
                 tile=self.map_data[y][x]
                 if (x,y) not in seen:
-                    print(platform.bound_left, platform.bound_right, platform.bound_up, platform.bound_down)
                     c_x,c_y = utils.coordinate(x), utils.coordinate(y)
                     # Create a sprite for the tile
                     sprite = Sprite(ASSETS[tile], center_x=c_x, center_y=c_y,scale=0.5)
+                    # check if the platform is moving
                     sprite.change_x = PLATFORM_MOVEMENT_SPEED_L if platform.bound_left < l or platform.bound_right > r else 0
                     sprite.change_y = PLATFORM_MOVEMENT_SPEED_V if platform.bound_up > u or platform.bound_down < d else 0
                     # Set the boundaries of the sprite
@@ -46,10 +45,11 @@ class MapDrawer:
                     sprite.boundary_left = c_x + min(utils.coordinate(platform.bound_left-0.5)-utils.coordinate(l), 0)
                     sprite.boundary_top = c_y + max(utils.coordinate(platform.bound_up+0.5)-utils.coordinate(u), 0)
                     sprite.boundary_bottom = c_y + min(utils.coordinate(platform.bound_down-0.5)-utils.coordinate(d), 0)
+                    # Add the sprite to the sprite list if not already present
                     sprite_list.append(sprite) if sprite not in sprite_list else None
                 else:
                     continue
-        #update the seen set
+        #update the seen set to iterate less through the map_data
         seen.update(platform.block)
     
     import arcade
@@ -57,8 +57,8 @@ class MapDrawer:
         """Get the sprite list from entity asset."""
         sprite_list: SpriteList[Entity] = SpriteList()
 
-        from gameview2 import GameView2
-        self.gameview: GameView2 = gameview
+        from gameview import GameView
+        self.gameview: GameView = gameview
 
         for y in range(self.height):
             for x in range(self.width):
@@ -94,8 +94,8 @@ class MapDrawer:
                     if switch_data is None:
                         raise ValueError(f"missing configuraion for switch at {(x,y)}")
                     # Create a sprite for the switch
-                    switch_state = switch_data["state"]
-                    sprite = ASSETS[tile] 
+                    switch_state = switch_data["state"] 
+                    sprite = ASSETS[tile] if switch_state == "off" else ":resources:/images/tiles/leverRight.png"
                     switch = Sprite(sprite, center_x= utils.coordinate(x), center_y=utils.coordinate(y), scale=0.5)
                     switch_sprite_list.append(switch)
                     sprite_to_switch_info[switch] = switch_data
@@ -125,20 +125,20 @@ class MapDrawer:
         # Return the sprite list of gates    
         return gate_sprite_list
     
-    def get_coins_to_SpriteList(self) -> SpriteList[Sprite]:
+    def get_collectable_to_SpriteList(self) -> SpriteList[collectable.Collectable]:
         """Get the sprite list from coin asset."""
-        coin_sprite_list: SpriteList[Sprite] = SpriteList(use_spatial_hash=True)
+        collectable_sprite_list: SpriteList[collectable.Collectable] = SpriteList(use_spatial_hash=True)
         # Iterate through the map data to find coin tiles
         for y in range(self.height):
             for x in range(self.width):
                 tile = self.map_data[y][x]
-                if tile == "*":
+                if tile == "*" or tile == "p":
                     c_x, c_y = utils.coordinate(x), utils.coordinate(y)
-                    coin = Sprite(ASSETS[tile], center_x=c_x, center_y=c_y, scale=0.5)
-                    coin_sprite_list.append(coin)
+                    item = collectable.Coin(c_x,c_y) if tile == "*" else collectable.Apple(c_x, c_y)
+                    collectable_sprite_list.append(item)
                 else:
                     continue
-        return coin_sprite_list
+        return collectable_sprite_list
     
     def get_exit_to_SpriteList(self) -> SpriteList[Sprite]:
         """Get the sprite list from exit asset."""

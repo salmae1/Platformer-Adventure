@@ -3,11 +3,49 @@ import math
 from constants import ARROW_GRAVITY
 import time
 from typing import TYPE_CHECKING
-
+from constants import tile_size
 if TYPE_CHECKING:
-    from gameview2 import GameView2
+    from gameview import GameView
 
-def on_update(gameview: "GameView2", delta_time: float) -> None:
+#exit list and switch list movement 
+def get_sprites_movement(view:"GameView") -> dict[arcade.Sprite, tuple[arcade.Sprite, float, float]]:
+    """Get the sprite movement for exit and switch sprites."""
+    switch_platform: dict[arcade.Sprite, tuple[arcade.Sprite, float, float]] = {}
+
+    for switch in view.switch_list:
+        plats = arcade.get_sprites_at_point(
+            (switch.center_x, switch.center_y - tile_size),
+            view.platform_list
+        )
+        if plats:
+            plat = plats[0]
+            dx = switch.center_x - plat.center_x
+            dy = switch.center_y - plat.center_y
+            switch_platform[switch] = (plat, dx, dy)
+
+    for switch in view.exit_list:
+        plats = arcade.get_sprites_at_point(
+            (switch.center_x, switch.center_y - tile_size),
+            view.platform_list
+        )
+        if plats:
+            plat = plats[0]
+            dx = switch.center_x - plat.center_x
+            dy = switch.center_y - plat.center_y
+            switch_platform[switch] = (plat, dx, dy)
+
+    return switch_platform
+
+def switch_exit_mouvement(platform_to_follow:dict[arcade.Sprite, tuple[arcade.Sprite, float, float]]) -> None:
+        """Update the position of switches and exits based on their platform."""
+        for switch_sprite, (platform_sprite, dx, dy) in platform_to_follow.items():
+            # If the platform sprite is None, skip this switch
+            if not platform_sprite :
+                continue
+            switch_sprite.center_x = platform_sprite.center_x + dx
+            switch_sprite.center_y = platform_sprite.center_y + dy
+
+def on_update(gameview: "GameView", delta_time: float) -> None:
         """Called once per frame, before drawing.
         This is where in-world time "advances", or "ticks".
         """
@@ -20,13 +58,11 @@ def on_update(gameview: "GameView2", delta_time: float) -> None:
         #updtate the camera to follow the player
         gameview.pan_camera_to_player()
 
-        # Check for coins   
-        if len(arcade.check_for_collision_with_list(gameview.player, gameview.coin_list)) != 0:
-            coin = arcade.check_for_collision_with_list(gameview.player, gameview.coin_list)[0]
-            coin.remove_from_sprite_lists()
-            collect_coin_sound = arcade.load_sound(":resources:sounds/coin1.wav", streaming=False)
-            arcade.play_sound(collect_coin_sound, loop=False)
-            gameview.score += 1
+        # Check for collectables  
+        if len(arcade.check_for_collision_with_list(gameview.player, gameview.collectable_list)) != 0:
+            collected = arcade.check_for_collision_with_list(gameview.player, gameview.collectable_list)
+            for collectable in collected:
+                collectable.collect(gameview)
             
         #update the weapons
         gameview.player.weapon.update()
@@ -37,7 +73,8 @@ def on_update(gameview: "GameView2", delta_time: float) -> None:
         
         #check for exit
         if gameview.exit_list:
-            if math.dist((gameview.player.center_x, gameview.player.center_y),( gameview.exit_list[0].center_x, gameview.exit_list[0].center_y)) <= 64 :
+            if arcade.check_for_collision_with_list(gameview.player, gameview.exit_list):
+                # If the player collides with the exit, play the sound and setup the next map
                 try :
                     next_level_sound = arcade.load_sound(":resources:/sounds/upgrade1.wav", streaming= False)
                     arcade.play_sound(next_level_sound, loop=False)
@@ -113,6 +150,21 @@ def on_update(gameview: "GameView2", delta_time: float) -> None:
                     for switch in hit_sword_switch:
                         gameview.run_switch(switch)
                     gameview._last_sword_switch_time = now
+
+        # Update the movement of switches and exits
+        switch_exit_mouvement(gameview.sprites_to_move)
+
+        if time.time() < gameview.player.hidden_time: #blinkblink
+            if int(time.time() * 20) % 2 == 0: #change in 0.05s 
+                if not gameview.player.blink_state:
+                    gameview.player.alpha = 100
+                    gameview.player.blink_state = True
+            else:
+                if gameview.player.blink_state:
+                    gameview.player.alpha = 220
+                    gameview.player.blink_state = False
+        else:
+            gameview.player.alpha = 255  
 
 
 

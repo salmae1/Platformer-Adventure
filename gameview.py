@@ -1,4 +1,3 @@
-from inspect import _empty
 import utils
 from  constants import tile_size , WINDOW_WIDTH, WINDOW_HEIGHT , ASSETS
 import arcade
@@ -12,7 +11,9 @@ from constants import PLAYER_GRAVITY
 from player import Player
 from typing import Literal
 import update
-class GameView2(arcade.View):
+import collectable
+import time
+class GameView(arcade.View):
     """Main in-game view."""
     player : Player
     wall_list: arcade.SpriteList[arcade.Sprite]
@@ -21,10 +22,11 @@ class GameView2(arcade.View):
     map_loader: maploader.MapLoader
     physics_engine:arcade.PhysicsEnginePlatformer
     camera: arcade.camera.Camera2D
-    coin_list: arcade.SpriteList[arcade.Sprite]
+    collectable_list: arcade.SpriteList[collectable.Collectable]
     exit_list: arcade.SpriteList[arcade.Sprite]
     lava_list: arcade.SpriteList[arcade.Sprite]
     switch_list: arcade.SpriteList[arcade.Sprite]
+    heart_list: arcade.SpriteList[arcade.Sprite]
     score : int
     next_map: str
 
@@ -56,6 +58,7 @@ class GameView2(arcade.View):
         WINDOW_HEIGHT / 2.0,
         height * tile_size ,
         )
+
         #switches_infos
         switch_infos:dict[tuple[int, int], SWITCH] = {}
         for switch_conf in switches:
@@ -87,14 +90,17 @@ class GameView2(arcade.View):
         self.lava_list = arcade.SpriteList(use_spatial_hash=True)
         for y in range(height):
             for x in range(width):
+                # If the tile has already been seen, skip it
                 if (x, y) in seen:
                     continue
+                # If the tile is a player spawn point, create the player sprite
                 elif map_data[y][x] == "S":
                     self.player = Player(ASSETS["S"], center_x=utils.coordinate(x), center_y=utils.coordinate(y), scale=0.5)
                 else:
+                    #get the platform tied to the tile
                     platform = utils.get_platform(x, y, map_data)
+                    #we check if the platform is not empty
                     if platform.block:
-                        print(platform.block)
                         # get the borders of the platform
                         left, right, up, down = utils.get_borders(platform.block)
                         # Check if the platform is moving
@@ -105,12 +111,14 @@ class GameView2(arcade.View):
                         else:
                             # If the platform is not moving, add it to the wall list
                             map_drawer.Platform_to_SpriteList(platform, self.wall_list,seen)
+
     #adding gates to the wall list
         for gate in self.gate_list:
             if gate not in self.wall_list:
                 self.wall_list.append(gate)
+
     # Create the coin sprite list
-        self.coin_list = map_drawer.get_coins_to_SpriteList()      
+        self.collectable_list = map_drawer.get_collectable_to_SpriteList()      
     # Create the exit sprite list
         self.exit_list = map_drawer.get_exit_to_SpriteList()    
     # Create the lava sprite list
@@ -119,16 +127,30 @@ class GameView2(arcade.View):
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self.player,
             walls=self.wall_list,
-            platforms=self.platform_list,  # Ensure moving platforms are included here
+            platforms=self.platform_list,
             gravity_constant=PLAYER_GRAVITY
         )
-        
         self.physics_engine.disable_multi_jump()
 
     # Add a cooldown timer for sword-switch collision
         self._last_sword_switch_time = 0.0
+    
+    # Determine how switches and exit moves
+        self.sprites_to_move :dict[arcade.Sprite, tuple[arcade.Sprite, float, float]] = {}
+        self.sprites_to_move = update.get_sprites_movement(self)
+    
+    #Add Hearts to show player lives
+        self.heart_list = arcade.SpriteList(use_spatial_hash=True)
+        for i in range(self.player.lives):
+            heart = arcade.Sprite("assets/heart.png", scale=0.09)
+            heart.center_x = WINDOW_WIDTH -40 - i * 53
+            heart.center_y = WINDOW_HEIGHT - 55
+            self.heart_list.append(heart)
+
 
     def run_switch(self, switch: arcade.Sprite) -> None:
+        """Run the switch action when the player interacts with a switch."""
+        # Check if the switch is enabled and has a valid sprite info
         switch_info = self.sprite_to_switch_info.get(switch)
         if not switch_info or not switch_info.get("enabled", False):
             return
@@ -167,19 +189,23 @@ class GameView2(arcade.View):
             if action["action"] == "disable":
                 switch_info["enabled"] = False
 
+
     def on_draw(self) -> None:
         """Render the screen."""
         self.clear() # always start with self.clear()
+
+            
         self.camera.use()
         self.entity_list.draw()
         self.wall_list.draw()
-        self.coin_list.draw()
+        self.collectable_list.draw()
         self.player.sprite_list.draw()
-        self.lava_list.draw()
-        self.exit_list.draw()
         self.platform_list.draw()
+        self.exit_list.draw()
         self.switch_list.draw()
         self.gate_list.draw()
+
+        #Draw the score and the active weapon
         with self.camera_score.activate():
             w, h = arcade.get_window().get_size()
             SCORE_TEXT = f"SCORE {self.score}"
@@ -197,6 +223,10 @@ class GameView2(arcade.View):
                 texture=active_weapon_image.texture,
                 rect=weapon_rect
             )
+            for i, heart in enumerate(self.heart_list):
+                heart.alpha = 255 if i < self.player.lives else 100
+            self.heart_list.draw()
+        
     def on_key_press(self, key: int, modifiers: int) -> None:
         """Called when the user presses a key on the keyboard."""
         if key == arcade.key.SPACE:
@@ -221,33 +251,43 @@ class GameView2(arcade.View):
 
     def pan_camera_to_player(self, panning_fraction: float = 0.3) -> None:
         """Pan the camera to follow the player."""
+        # Ensure the camera is initialized and follows the player
         self.camera.position = arcade.math.smerp_2d(
             self.camera.position,
             self.player.position,
             self.window.delta_time,
             panning_fraction
         )
+        # Constrain the camera position to the bounds
         position = arcade.camera.grips.constrain_xy(
             self.camera.view_data,
             self.camera_bounds,
         )
+        # Update the camera position
         self.camera.position = arcade.Vec2(position[0], position[1])
 
     def check_for_gameover(self)-> None :
-
+        """Check if the player has touched lava or collided with an entity."""
+        if time.time()<self.player.hidden_time:
+            return
+        # Check if the player has touched lava
         touched_lava = any(lava.collides_with_point((self.player.center_x, self.player.bottom - 1)) for lava in self.lava_list)
         if touched_lava :
             gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav", streaming=False)
             arcade.play_sound(gameover_sound,loop=False)
             self.score = 0
             self.setup()
-
+        # Check if the player has collided with an entity
         if len(arcade.check_for_collision_with_list(self.player, self.entity_list)) != 0 :
-            gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav", streaming=False)
-            arcade.play_sound(gameover_sound,loop=False)
-            self.score = 0
-            self.setup()
-
+            self.player.lives -= 1
+            self.player.hidden_time = time.time() + 1
+            if self.player.lives <= 0:
+                # Play game over sound and reset the game
+                gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav", streaming=False)
+                arcade.play_sound(gameover_sound,loop=False)
+                self.score = 0
+                self.setup()
+            
 
     def on_update(self, delta_time: float) -> None:
         """Called once per frame, before drawing."""

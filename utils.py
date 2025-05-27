@@ -11,7 +11,7 @@ def bfs_connected_components(start_x: int, start_y: int, map_data : list[str]) -
             width = len(map_data[0]) if height > 0 else 0
             # Initialize the list to store connected components
             connected_components = []
-            if  map_data[start_y][start_x]  in ASSETS and map_data[start_y][start_x] not in {"^","*", "S","|"}:
+            if  map_data[start_y][start_x]  in ASSETS and map_data[start_y][start_x] not in {"^","*", "S","|","p","E"}:
                 # Initialize BFS
                 queue = [(start_x, start_y)]
                 visit = {(start_x, start_y)}
@@ -23,7 +23,8 @@ def bfs_connected_components(start_x: int, start_y: int, map_data : list[str]) -
                         new_y = y + dy
                     # Correct bounds check
                         if  0 <= new_y < height and 0 <= new_x < width :
-                            if (new_x, new_y) not in visit and map_data[new_y][new_x] in ASSETS and map_data[new_y][new_x] not in {"^","*", "S","|"}:
+                            if (new_x, new_y) not in visit and map_data[new_y][new_x] in ASSETS and \
+                               map_data[new_y][new_x] not in {"^","*", "S","|","p","E"}:
                                 queue.append((new_x, new_y))
                                 visit.add((new_x, new_y))
                         else :

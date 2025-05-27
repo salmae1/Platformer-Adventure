@@ -26,6 +26,7 @@ ASSETS = {
     "-": ":resources:/images/tiles/grassHalf_mid.png",
     "x": ":resources:/images/tiles/boxCrate_double.png",
     "*": ":resources:/images/items/coinGold.png",
+    "p": "assets/kenney-voxel-items-png/apple.png",
     "£": ":resources:/images/tiles/lava.png",
     "S": ":resources:/images/animated_characters/female_person/femalePerson_idle.png",
     "E": ":resources:/images/tiles/signExit.png" ,

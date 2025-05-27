@@ -30,13 +30,15 @@ class Blob(Entity):
 
     def movement(self) -> None:
         """Handles blob movement and reverses direction when hitting walls."""
+        # If the blob is in a cooldown period after reversing direction, skip movement
         if self.reverse_cooldown > 0:
             self.reverse_cooldown -= 1
             self.center_x += self.change_x
             return
-        from gameview2 import GameView2
-        self.game: GameView2
-
+        from gameview import GameView
+        #assign the type hint for game to use the attribute wall_list
+        self.game: GameView
+        # Calculate the hitboxes for the blob
         right_hitbox = self.right + self.change_x
         left_hitbox = self.left + self.change_x
         ground_left = False
@@ -106,8 +108,8 @@ class Ghost(Entity):
 
     def movement(self) -> None:
         """ Handles the ghost movement by moving towards the player. """
-        from gameview2 import GameView2
-        self.game: GameView2
+        from gameview import GameView
+        self.game: GameView
 
         # Calculate the distance to the player
         player_x = self.game.player.center_x

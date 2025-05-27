@@ -52,13 +52,11 @@ class MapLoader:
         switches_ = config.get("switches", [])
         gates = config.get("gates", [])
 
-
         switches : list[SWITCH] = []
         for yaml_switch in switches_:
             x = int(yaml_switch["x"])
             y = int(yaml_switch["y"])
             state = yaml_switch.get("state", "off")
-            print(x, y, state)
             # Correct: use the YAML state if present, otherwise default to "off"
             if state is True:
                 state = "on"

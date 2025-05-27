@@ -6,11 +6,14 @@ import time
 class Player(arcade.Sprite):
     """Player class representing the player character in the game."""
     sprite_list: arcade.SpriteList[arcade.Sprite]
+    lives : int
     weapon: arcade.SpriteList[arcade.Sprite]
     right_pressed: bool 
     left_pressed: bool
     up_pressed: bool
     can_jump : bool
+    hidden_time: float
+    blink_state: bool
     sword_draw_time: float | None = None  # Time when the sword was drawn
 
     def __init__(self, image: str, center_x: float, center_y: float,scale: float = 0.5) -> None:
@@ -23,6 +26,11 @@ class Player(arcade.Sprite):
         self.right_pressed = False
         self.left_pressed = False
         self.up_pressed = False
+
+        self.lives = 3  # Initialize player lives
+
+        self.hidden_time = 0 #initialize invincibility time
+        self.blink_state = False  # Initialize blink state
 
         self.jump_sound = arcade.load_sound(":resources:sounds/jump1.wav", streaming=False)
 

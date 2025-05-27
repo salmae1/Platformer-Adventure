@@ -39,12 +39,12 @@ gates:
   # the other gates start closed
 ---
 ^     x           x
---    x ^     G   x
-      x--  ---    |
-   ---x     ↓   v =
+--    x ^  E   G  x
+    p x-----→→→   |
+   ---x    *   v  =
  o    x   -----   =
----   x   x   |  x=
- S    |  xx * x  x=  E
+--- * x   x   |  x=
+ S    |  xx * x  x=  
 ========================
 ---
 
