@@ -173,11 +173,11 @@ gates: []
         assert sorted(block_left) == [(0,4),(1,4),(2,4)]
         assert sorted(block_right) == [(16,4),(17,4)]
         plat_left = get_platform(0,4,map_data)
-        plat_right = get_platform(15,4,map_data)
-        # Check their bounds: left platform should move right up to 8, right platform should move left down to 9
+        plat_right = get_platform(16,4,map_data)
+        # Check their bounds: left platform should move right up to 9, right platform should move left down to 10
         assert plat_left.bound_right == 9
         assert plat_left.bound_left == w
-        assert plat_right.bound_left == 18
+        assert plat_right.bound_left == 10
         assert plat_right.bound_right == 0
 
     finally:
