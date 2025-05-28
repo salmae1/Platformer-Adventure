@@ -27,8 +27,6 @@ class Player(arcade.Sprite):
         self.left_pressed = False
         self.up_pressed = False
 
-        self.lives = 3  # Initialize player lives
-
         self.hidden_time = 0 #initialize invincibility time
         self.blink_state = False  # Initialize blink state
 

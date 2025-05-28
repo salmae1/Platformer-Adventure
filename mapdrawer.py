@@ -24,7 +24,7 @@ class MapDrawer:
         """Get the map data."""
         return self.__map_data
     
-    def Platform_to_SpriteList(self,platform:Platform,sprite_list : SpriteList[Sprite],seen:set[tuple[int,int]]) -> None:
+    def Platform_to_SpriteList(self,platform:Platform,sprite_list : SpriteList[Sprite],lava_list :SpriteList[Sprite],seen:set[tuple[int,int]]) -> None:
         """Get the sprite list from a block."""
         #get the borders of the platform
         l,r,u,d= utils.get_borders(platform.block)
@@ -46,7 +46,12 @@ class MapDrawer:
                     sprite.boundary_top = c_y + max(utils.coordinate(platform.bound_up+0.5)-utils.coordinate(u), 0)
                     sprite.boundary_bottom = c_y + min(utils.coordinate(platform.bound_down-0.5)-utils.coordinate(d), 0)
                     # Add the sprite to the sprite list if not already present
-                    sprite_list.append(sprite) if sprite not in sprite_list else None
+                    if tile == "£" and sprite.change_x == 0 and sprite.change_y == 0:
+                        lava_list.append(sprite) if sprite not in lava_list else None
+                    else:
+                        if tile == "£" and (sprite.change_x != 0 or sprite.change_y != 0):
+                            lava_list.append(sprite) if sprite not in lava_list else None
+                        sprite_list.append(sprite) if sprite not in sprite_list else None
                 else:
                     continue
         #update the seen set to iterate less through the map_data
@@ -154,21 +159,6 @@ class MapDrawer:
                 else:
                     continue
         return exit_sprite_list
-
-    def get_lava_to_SpriteList(self) -> SpriteList[Sprite]:
-        """Get the sprite list from lava asset."""
-        lava_sprite_list: SpriteList[Sprite] = SpriteList(use_spatial_hash=True)
-        # Iterate through the map data to find lava tiles
-        for y in range(self.height):
-            for x in range(self.width):
-                tile = self.map_data[y][x]
-                if tile == "£":
-                    c_x, c_y = utils.coordinate(x), utils.coordinate(y)
-                    lava = Sprite(ASSETS[tile], center_x=c_x, center_y=c_y, scale=0.5)
-                    lava_sprite_list.append(lava)
-                else:
-                    continue
-        return lava_sprite_list
 
 
 

@@ -27,6 +27,7 @@ class GameView(arcade.View):
     lava_list: arcade.SpriteList[arcade.Sprite]
     switch_list: arcade.SpriteList[arcade.Sprite]
     heart_list: arcade.SpriteList[arcade.Sprite]
+    current_lives: int
     score : int
     next_map: str
 
@@ -36,6 +37,7 @@ class GameView(arcade.View):
 
         # Choose a nice comfy background color
         self.background_color = arcade.csscolor.CORNFLOWER_BLUE
+        self.current_lives = 3
 
         # Setup our game
         self.setup(filepath)
@@ -88,6 +90,9 @@ class GameView(arcade.View):
         self.wall_list = arcade.SpriteList(use_spatial_hash=True)
         self.platform_list = arcade.SpriteList(use_spatial_hash=True)
         self.lava_list = arcade.SpriteList(use_spatial_hash=True)
+        #implement the moving lava separately
+        self.moving_lava : arcade.SpriteList[arcade.Sprite]= arcade.SpriteList(use_spatial_hash=True)
+
         for y in range(height):
             for x in range(width):
                 # If the tile has already been seen, skip it
@@ -96,6 +101,7 @@ class GameView(arcade.View):
                 # If the tile is a player spawn point, create the player sprite
                 elif map_data[y][x] == "S":
                     self.player = Player(ASSETS["S"], center_x=utils.coordinate(x), center_y=utils.coordinate(y), scale=0.5)
+                    self.player.lives = self.current_lives
                 else:
                     #get the platform tied to the tile
                     platform = utils.get_platform(x, y, map_data)
@@ -107,10 +113,10 @@ class GameView(arcade.View):
                         if platform.bound_left < left or platform.bound_right > right or \
                            platform.bound_up > up or platform.bound_down < down:
                             # If the platform is moving, add it to the platform list
-                            map_drawer.Platform_to_SpriteList(platform, self.platform_list,seen)
+                            map_drawer.Platform_to_SpriteList(platform, self.platform_list,self.moving_lava,seen)
                         else:
                             # If the platform is not moving, add it to the wall list
-                            map_drawer.Platform_to_SpriteList(platform, self.wall_list,seen)
+                            map_drawer.Platform_to_SpriteList(platform, self.wall_list,self.lava_list,seen)
 
     #adding gates to the wall list
         for gate in self.gate_list:
@@ -121,8 +127,6 @@ class GameView(arcade.View):
         self.collectable_list = map_drawer.get_collectable_to_SpriteList()      
     # Create the exit sprite list
         self.exit_list = map_drawer.get_exit_to_SpriteList()    
-    # Create the lava sprite list
-        self.lava_list = map_drawer.get_lava_to_SpriteList()    
     # Create the physics engine
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self.player,
@@ -141,11 +145,12 @@ class GameView(arcade.View):
     
     #Add Hearts to show player lives
         self.heart_list = arcade.SpriteList(use_spatial_hash=True)
-        for i in range(self.player.lives):
+        for i in range(3):
             heart = arcade.Sprite("assets/heart.png", scale=0.09)
             heart.center_x = WINDOW_WIDTH -40 - i * 53
             heart.center_y = WINDOW_HEIGHT - 55
             self.heart_list.append(heart)
+
 
 
     def run_switch(self, switch: arcade.Sprite) -> None:
@@ -201,6 +206,7 @@ class GameView(arcade.View):
         self.collectable_list.draw()
         self.player.sprite_list.draw()
         self.platform_list.draw()
+        self.lava_list.draw()
         self.exit_list.draw()
         self.switch_list.draw()
         self.gate_list.draw()
@@ -268,17 +274,19 @@ class GameView(arcade.View):
 
     def check_for_gameover(self)-> None :
         """Check if the player has touched lava or collided with an entity."""
-        if time.time()<self.player.hidden_time:
-            return
         # Check if the player has touched lava
         touched_lava = any(lava.collides_with_point((self.player.center_x, self.player.bottom - 1)) for lava in self.lava_list)
-        if touched_lava :
+        touched_moving_lava = any(lava.collides_with_point((self.player.center_x, self.player.bottom - 1)) for lava in self.moving_lava)
+        if touched_lava or touched_moving_lava:
             gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav", streaming=False)
             arcade.play_sound(gameover_sound,loop=False)
             self.score = 0
+            self.current_lives =3
             self.setup()
         # Check if the player has collided with an entity
         if len(arcade.check_for_collision_with_list(self.player, self.entity_list)) != 0 :
+            if time.time()<self.player.hidden_time:
+                return
             self.player.lives -= 1
             self.player.hidden_time = time.time() + 1
             if self.player.lives <= 0:
@@ -286,9 +294,9 @@ class GameView(arcade.View):
                 gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav", streaming=False)
                 arcade.play_sound(gameover_sound,loop=False)
                 self.score = 0
+                self.current_lives = 3
                 self.setup()
             
-
     def on_update(self, delta_time: float) -> None:
         """Called once per frame, before drawing."""
         update.on_update(self, delta_time)

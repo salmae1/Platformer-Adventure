@@ -78,6 +78,7 @@ def on_update(gameview: "GameView", delta_time: float) -> None:
                 try :
                     next_level_sound = arcade.load_sound(":resources:/sounds/upgrade1.wav", streaming= False)
                     arcade.play_sound(next_level_sound, loop=False)
+                    gameview.current_lives = gameview.player.lives
                     gameview.setup(gameview.next_map)
                 except :
                     arcade.exit()
