@@ -209,8 +209,9 @@ def test_on_update() -> None:
     assert monster.removed, "Monster should have been removed from sprite lists"
     mock_game_view.run_switch.assert_called()
 
-    player.blink_state = False
+    mock_game_view.player.sword_draw_time = time.time() - 1  
+    player.blink_state = True
     on_update(mock_game_view, 1/60)
-    assert player.alpha in (100, 220)
 
+    assert player.alpha in (100, 220)
 

@@ -1,36 +1,33 @@
 import pytest
-import arcade 
-from unittest.mock import MagicMock
+import arcade
 from constants import Arrow, Platform
-
 from mapdrawer import MapDrawer
 from Entity import Blob, Bat, Ghost
 import collectable
-import utils
 from gameview import GameView
-from constants import ASSETS
 from maploader import SWITCH
-
-@pytest.fixture
-def mock_gameview() -> GameView:
-    view = MagicMock(spec=arcade.View)
-    view.wall_list = arcade.SpriteList()
-    view.player = MagicMock()
-    return view
 
 
 @pytest.fixture
 def test_map_data() -> list[str]:
+    """Carte de test """
     return [
         "........",
         "..^.|..E",
         "..o*vGp."
     ]
 
+@pytest.fixture
+def test_gameview(window: arcade.Window) -> GameView:
+    view = GameView("maps/maptest.txt")  
+    window.show_view(view)
+    return view
 
-def test_entities_to_SpriteList(test_map_data : list[str], mock_gameview : GameView)-> None:
-    drawer = MapDrawer(test_map_data, 8, 3, mock_gameview)
-    entity_list = drawer.entities_to_SpriteList(mock_gameview)
+
+
+def test_entities_to_SpriteList(test_map_data: list[str], test_gameview: GameView) -> None:
+    drawer = MapDrawer(test_map_data, 8, 3, test_gameview)
+    entity_list = drawer.entities_to_SpriteList(test_gameview)
 
     assert len(entity_list) == 3
     types = [type(e) for e in entity_list]
@@ -39,12 +36,16 @@ def test_entities_to_SpriteList(test_map_data : list[str], mock_gameview : GameV
     assert Ghost in types
 
 
-def test_switches_to_SpriteList(test_map_data: list[str])-> None:
-    drawer = MapDrawer(test_map_data, 8, 3, MagicMock())
+def test_switches_to_SpriteList(test_map_data: list[str], test_gameview: GameView) -> None:
+    drawer = MapDrawer(test_map_data, 8, 3, test_gameview)
 
-    switch_infos: dict[tuple[int, int], SWITCH] = {}
-    switch_infos = {
-        (2, 1): {"state": "off", "enabled": True, "switch_on": [], "switch_off": []}
+    switch_infos: dict[tuple[int, int], SWITCH] = {
+        (2, 1): {
+            "state": "off",
+            "enabled": True,
+            "switch_on": [],
+            "switch_off": []
+        }
     }
 
     switch_list, sprite_to_info = drawer.switches_to_SpriteList(switch_infos)
@@ -54,12 +55,13 @@ def test_switches_to_SpriteList(test_map_data: list[str])-> None:
     assert isinstance(switch_sprite, arcade.Sprite)
     assert switch_sprite in sprite_to_info
     assert sprite_to_info[switch_sprite]["state"] == "off"
+    assert isinstance(sprite_to_info[switch_sprite]["enabled"], bool)
 
 
-def test_gates_to_SpriteList(test_map_data: list[str])->None:
-    drawer = MapDrawer(test_map_data, 8, 3, MagicMock())
-    seen : set[tuple[int, int]]= set()
-    gate_states = {(4, 1): False}  # closed gate
+def test_gates_to_SpriteList(test_map_data: list[str], test_gameview: GameView) -> None:
+    drawer = MapDrawer(test_map_data, 8, 3, test_gameview)
+    seen: set[tuple[int, int]] = set()
+    gate_states = {(4, 1): False} 
 
     gate_list = drawer.gates_to_SpriteList(gate_states, seen)
 
@@ -69,8 +71,8 @@ def test_gates_to_SpriteList(test_map_data: list[str])->None:
     assert (4, 1) in seen
 
 
-def test_get_collectable_to_SpriteList(test_map_data: list[str])->None:
-    drawer = MapDrawer(test_map_data, 8, 3, MagicMock())
+def test_get_collectable_to_SpriteList(test_map_data: list[str], test_gameview: GameView) -> None:
+    drawer = MapDrawer(test_map_data, 8, 3, test_gameview)
     items = drawer.get_collectable_to_SpriteList()
 
     assert len(items) == 2
@@ -79,15 +81,15 @@ def test_get_collectable_to_SpriteList(test_map_data: list[str])->None:
     assert collectable.Apple in types
 
 
-def test_get_exit_to_SpriteList(test_map_data : list[str])->None:
-    drawer = MapDrawer(test_map_data, 8, 3, MagicMock())
+def test_get_exit_to_SpriteList(test_map_data: list[str], test_gameview: GameView) -> None:
+    drawer = MapDrawer(test_map_data, 8, 3, test_gameview)
     exits = drawer.get_exit_to_SpriteList()
 
     assert len(exits) == 1
     assert isinstance(exits[0], arcade.Sprite)
 
 
-def test_Platform_to_SpriteList()-> None:
+def test_Platform_to_SpriteList(test_gameview: GameView) -> None:
     test_platform = Platform(
         block=[(1, 1), (2, 1)],
         bounds={
@@ -98,8 +100,7 @@ def test_Platform_to_SpriteList()-> None:
         }
     )
     dummy_map = ["xxxxx"] * 3
-    drawer = MapDrawer(dummy_map, 8, 3, MagicMock())
-
+    drawer = MapDrawer(dummy_map, 8, 3, test_gameview)
 
     wall_list :arcade.SpriteList[arcade.Sprite]= arcade.SpriteList()
     lava_list :arcade.SpriteList[arcade.Sprite]= arcade.SpriteList()

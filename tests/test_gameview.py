@@ -3,6 +3,7 @@ import math
 import time
 import pytest
 from unittest.mock import MagicMock
+from typing import Generator
 import utils
 from gameview import GameView
 from player import Player
@@ -10,9 +11,17 @@ from Entity import Blob
 from constants import PLAYER_JUMP_SPEED, PLAYER_MOVEMENT_SPEED
 
 
-def test_setup() -> None:
-    arcade.open_window(800, 600, "Test Setup")
-    view = GameView("maps/map1.txt")
+@pytest.fixture(scope="session", autouse=True)
+def arcade_window()-> Generator[None, None, None]:
+    arcade.open_window(800, 600, "Test")
+    yield
+    arcade.close_window()
+
+@pytest.fixture
+def view() -> GameView:
+    return GameView("maps/maptest.txt")
+
+def test_setup(view:GameView) -> None:
 
     assert isinstance(view.player, Player)
     assert view.player.lives == view.current_lives
@@ -61,21 +70,19 @@ def test_setup() -> None:
     assert all(
         isinstance(k, tuple) and isinstance(v, bool) for k, v in view.gate_states.items()
     )
-    assert all(
-        any(
-            int(g.center_x) == utils.coordinate(x) and int(g.center_y) == utils.coordinate(y)
-            for g in view.gate_list
-        )
-        for (x, y), state in view.gate_states.items() if not state
-    )
+
+    for (x, y), state in view.gate_states.items():
+        if not state:
+            found = any(
+                int(g.center_x) == utils.coordinate(x) and int(g.center_y) == utils.coordinate(y)
+                for g in view.gate_list
+            )
+            if not found:
+                print(f" Gate fermé introuvable en position logique ({x}, {y}) = ({utils.coordinate(x)}, {utils.coordinate(y)})")
+            assert found
 
 
-    arcade.close_window()
-
-
-def test_on_draw() -> None:
-    arcade.open_window(800, 600, "Test Draw")
-    view = GameView("maps/map1.txt")
+def test_on_draw(view:GameView) -> None:
 
     assert isinstance(view.player, Player)
     assert view.camera is not None
@@ -93,13 +100,12 @@ def test_on_draw() -> None:
     except Exception as e:
         assert False, f"on_draw() raised an exception: {e}"
 
-    arcade.close_window()
+    active = view.player.active_weapon_sprite
+    assert active in (view.player.sword, view.player.bowArrow)
 
 
-
-def test_run_switch() -> None:
-    arcade.open_window(800, 600, "Test Run Switch")
-    view = GameView("maps/map1.txt")
+def test_run_switch(view:GameView) -> None:
+    
     if not view.switch_list:
         pytest.skip("Pas de switch sur cette carte")
 
@@ -144,16 +150,16 @@ def test_run_switch() -> None:
     assert view.gate_states[(1, 1)] is False
     assert after_count > before_count
 
-    arcade.close_window()
 
 
-def test_check_for_gameover() -> None:
-    arcade.open_window(800, 600, "Test Game Over")
-    view = GameView("maps/map1.txt")
+
+def test_check_for_gameover(view:GameView) -> None:
+
 
     lava = arcade.Sprite(center_x=view.player.center_x, center_y=view.player.bottom - 1)
     lava.texture = arcade.make_soft_square_texture(32, arcade.color.RED, 255)
     view.lava_list.append(lava)
+
     view.player.lives = 2
     view.score = 50
     view.current_lives = 1
@@ -181,12 +187,21 @@ def test_check_for_gameover() -> None:
     assert view.current_lives == 3
     assert view.player.lives == 3
 
-    arcade.close_window()
+
+    view.entity_list.clear()
+    view.player.lives = 2
+    view.current_lives = 2
+    view.player.hidden_time = 0
+
+    view.check_for_gameover()
+    assert view.score == 0
+    assert view.current_lives == 2
+    assert view.player.lives == 2
 
 
-def test_pan_camera_to_player() -> None:
-    arcade.open_window(800, 600, "Test Pan Camera")
-    view = GameView("maps/map1.txt")
+
+
+def test_pan_camera_to_player(view:GameView) -> None:
 
     original_position = view.camera.position
     view.player.center_x += 100
@@ -203,11 +218,9 @@ def test_pan_camera_to_player() -> None:
     assert view.camera_bounds.left < view.camera_bounds.right
     assert view.camera_bounds.bottom < view.camera_bounds.top
 
-    arcade.close_window()
 
-def test_on_key_press() -> None:
-    arcade.open_window(800, 600, "Test Key Press")
-    view = GameView("maps/map1.txt")
+def test_on_key_press(view:GameView) -> None:
+    
     view.score = 99
     view.on_key_press(arcade.key.SPACE, 0)
     assert view.score == 0
@@ -227,12 +240,11 @@ def test_on_key_press() -> None:
     view.on_key_press(arcade.key.UP, 0)
     assert view.player.up_pressed
     assert view.player.change_y == PLAYER_JUMP_SPEED
-    arcade.close_window()
 
 
-def test_on_key_release() -> None:
-    arcade.open_window(800, 600, "Test Key Release")
-    view = GameView("maps/map1.txt")
+
+def test_on_key_release(view:GameView) -> None:
+   
     view.player.right_pressed = True
     view.player.left_pressed = True
     view.player.up_pressed = True
@@ -245,13 +257,10 @@ def test_on_key_release() -> None:
 
     view.on_key_release(arcade.key.UP, 0)
     assert not view.player.up_pressed
-    arcade.close_window()
 
 
-def test_on_mouse_press() -> None:
 
-    arcade.open_window(800, 600, "Test Mouse Press")
-    view = GameView("maps/map1.txt")
+def test_on_mouse_press(view:GameView) -> None:
 
 
     old_index = view.player.active_weapon_index
@@ -262,12 +271,11 @@ def test_on_mouse_press() -> None:
     view.player.active_weapon_sprite = view.player.sword
     view.on_mouse_press(300, 300, arcade.MOUSE_BUTTON_LEFT, 0)
     assert view.player.sword in view.player.sprite_list
-    arcade.close_window()
 
 
-def test_on_mouse_release() -> None:
-    arcade.open_window(800, 600, "Test Mouse Release")
-    view = GameView("maps/map1.txt")
+
+def test_on_mouse_release(view:GameView) -> None:
+    
     view.player.active_weapon_index = 1
     view.player.active_weapon_sprite = view.player.bowArrow
     view.player.arrow_target_x = 300
@@ -282,14 +290,11 @@ def test_on_mouse_release() -> None:
     arrow = view.player.sprite_list[-1]
     assert arrow.center_x == view.player.center_x
     assert arrow.center_y == view.player.center_y
-    arcade.close_window()
 
 
 
-def test_on_update() -> None:
-    arcade.open_window(800, 600, "Test On Update")
-    view = GameView("maps/map1.txt")
 
+def test_on_update(view: GameView) -> None:
     view.player.change_x = 5
     view.player.change_y = 10
     old_x = view.player.center_x
@@ -302,5 +307,3 @@ def test_on_update() -> None:
 
     assert view.player.center_x != old_x
     assert view.player.center_y != old_y
-
-    arcade.close_window()

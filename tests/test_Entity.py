@@ -7,12 +7,9 @@ import random
 
 
 @pytest.fixture
-def mock_game_view() -> GameView:
-    view = MagicMock(spec=arcade.View)
-    view.wall_list = arcade.SpriteList()
-    view.player = MagicMock()
-    view.player.center_x = 100
-    view.player.center_y = 100
+def mock_game_view(window: arcade.Window) -> GameView:
+    view = GameView()
+    window.show_view(view)
     return view
 
 
@@ -27,13 +24,11 @@ def test_blob_movement(mock_game_view: GameView) -> None:
     blob = Blob(50, 100, mock_game_view)
     blob.change_x = 1
     blob.reverse_cooldown = 0
-
     blob.center_y = ground.top + blob.height / 2 + 1 
 
     previous_x = blob.center_x
     blob.movement()
 
-    print(f"Previous X: {previous_x}, New X: {blob.center_x}, DX: {blob.change_x}")
     assert blob.center_x > previous_x
 
 
@@ -71,8 +66,8 @@ def test_bat_movement(mock_game_view: GameView) -> None:
     bat.center_x = 400
     bat.center_y = 400
     bat.movement()
-    assert bat.change_x < 0, "Bat should move left toward origin"
-    assert bat.change_y < 0, "Bat should move down toward origin"
+    assert bat.change_x < 0, "Bat should move left toward original_x"
+    assert bat.change_y < 0, "Bat should move down toward original_y"
 
 
 
@@ -104,4 +99,4 @@ def test_ghost_movement(mock_game_view: GameView) -> None:
     mock_game_view.player.center_y = 1000
     ghost.movement()
     assert ghost.change_x == 0, "Ghost should stop when player is out of range"
-    assert ghost.change_y == 0, "Ghost should stop when player is out of range"
+    assert ghost.change_y == 0

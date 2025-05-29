@@ -147,8 +147,8 @@ class GameView(arcade.View):
         self.heart_list = arcade.SpriteList(use_spatial_hash=True)
         for i in range(3):
             heart = arcade.Sprite("assets/heart.png", scale=0.09)
-            heart.center_x = WINDOW_WIDTH -40 - i * 53
-            heart.center_y = WINDOW_HEIGHT - 55
+            heart.center_x = WINDOW_WIDTH -240 - i * 53
+            heart.center_y = WINDOW_HEIGHT - 180
             self.heart_list.append(heart)
 
 
@@ -228,7 +228,7 @@ class GameView(arcade.View):
         with self.camera_score.activate():
             w, h = arcade.get_window().get_size()
             SCORE_TEXT = f"SCORE {self.score}"
-            arcade.draw_text(SCORE_TEXT, w - 110, h - 30, 
+            arcade.draw_text(SCORE_TEXT, w - 140, h - 30, 
                              arcade.csscolor.WHITE, 18)
             if self.player.active_weapon_index == 0:
                 active_weapon_image = self.player.sword
@@ -308,7 +308,6 @@ class GameView(arcade.View):
             if time.time()<self.player.hidden_time:
                 return
             self.player.lives -= 1
-            self.player.hidden_time = time.time() + 1
             if self.player.lives <= 0:
                 # Play game over sound and reset the game
                 gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav", streaming=False)
