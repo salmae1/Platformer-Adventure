@@ -1,17 +1,41 @@
-width: 40
-height: 15
-next_map: map3.txt
+width: 24
+height: 8
+switches:
+  - x: 6
+    y: 5
+    switch_on:
+      - action: open-gate
+        x: 14
+        y: 3
+      - action: disable
+  - x: 19
+    y: 1
+    state: on
+    switch_off:
+      - action: open-gate
+        x: 21
+        y: 5
+      - action: close-gate
+        x: 14
+        y: 3
+    switch_on:
+      - action: close-gate
+        x: 21
+        y: 5
+      - action: open-gate
+        x: 14
+        y: 3
+gates:
+  - x: 14
+    y: 3
+  - x: 21
+    y: 5
 ---
-"*  *                                      "
-"=====                    *        *      "
-"                     o   x  o     x      "
-"              ==========                 "
-"                                         "
-"         ============                    "
-"                                         "
-"    ======                               "
-"                                         "
-"                   o *                  "
-"                             ========= ====="
-"                                         "
-"==========£££££££££££££££££££££££££££££££££======="
+      x       xxxxxx
+   ^  x       x  G x
+---x  x--→    x    x
+   x    * p   x    x
+ S |          x----x   E
+===|==================££
+---
+
