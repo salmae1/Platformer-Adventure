@@ -160,7 +160,7 @@ def test_check_for_gameover(view:GameView) -> None:
     lava.texture = arcade.make_soft_square_texture(32, arcade.color.RED, 255)
     view.lava_list.append(lava)
 
-    view.player.lives = 2
+    view.player.lives = 1
     view.score = 50
     view.current_lives = 1
     view.player.hidden_time = 0

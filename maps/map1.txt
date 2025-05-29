@@ -1,66 +1,24 @@
-width: 62
-height: 12
+width: 30
+height: 15
 next-map: map2.txt
-switches:
-  - x: 0
-    y: 0
-    switch_on:
-      - action: open-gate
-        x: 3
-        y: 3
-      - action: disable
-  - x: 0
-    y: 10
-    switch_on:
-      - action: open-gate
-        x: 10
-        y: 8
-      - action: disable
-  - x: 14
-    y: 9
-    state: on
-    switch_off:
-      - action: open-gate
-        x: 24
-        y: 6
-      - action: close-gate
-        x: 36
-        y: 4
-    switch_on:
-      - action: close-gate
-        x: 24
-        y: 6
-      - action: open-gate
-        x: 36
-        y: 4
-  - x: 38
-    y: 3
-    switch_on:
-      - action: open-gate
-        x: 10
-        y: 8
-      - action: disable
-gates:
-  - x: 10
-    y: 8
-  - x: 24
-    y: 6
-  - x: 36
-    y: 4
-    state: open
+switches: []
+gates: []
 ---
-      p                            o   
-^                 xxxxx          xxxxxxxxxxxx                
---       *         x G     →→     x   x   G x     ←--     --
-  x  S     p        x               x   x     x
-  x----→→       xxxxxxx        ←---  x   x     x      xxxxxx
-  x         G           xxxxx      x   x     x      x G  x
-              x     *   x   x      x *                   x
-  xxxxxx      x         x       p  x   x     x      x    x
-            xxxxxxxxxxx   xxxxxxx    xxxxxxx   E   xxxxx    
-=============================================================
-= | =========================================================
-= | ============================£££££========================
+
+                       ↑
+                       ↑
+                       ↑
+                       ↑
+                       ↑
+      v                ↑E
+          =£££=       xxx
+          -----=      x x
+            *  =  G   xxx
+         ←←←x→→=→→→→→→→→↓
+               =        ↓
+   v        ----
+ S     x o              E
+============££=££===========
 ---
 
 

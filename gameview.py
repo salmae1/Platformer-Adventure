@@ -53,7 +53,6 @@ class GameView(arcade.View):
         width, height, map_data, next_map, switches, gates = self.map_loader.read_map()
         # Set the next map
         self.next_map = next_map
-        print(f"Next map: {self.next_map}")
         #set camera bounds 
         self.camera_bounds = arcade.LRBT(
         WINDOW_WIDTH / 2.0,
@@ -301,6 +300,17 @@ class GameView(arcade.View):
     def on_update(self, delta_time: float) -> None:
         """Called once per frame, before drawing."""
         update.on_update(self, delta_time)
+
+    def end_game(self) -> None:
+        """End the game and return to the main menu."""
+        with self.camera_score.activate():
+            w, h = arcade.get_window().get_size()
+            arcade.set_background_color(arcade.csscolor.CORNFLOWER_BLUE)
+            self.clear()
+            arcade.draw_text("GAME OVER", w / 2, h / 2 + 30,
+            arcade.color.RED, 50, anchor_x="center")
+            arcade.draw_text("THANKS FOR PLAYING", w / 2, h / 2 - 30,
+            arcade.csscolor.WHITE, 24, anchor_x="center")
 
 
 

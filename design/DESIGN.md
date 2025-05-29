@@ -254,7 +254,7 @@
 
 
 ## Diagramme de structure
-
+```
                             +-----------------+
                             |    Entity       |◄────────┐
                             |-----------------+         │
@@ -297,6 +297,7 @@
 |-----------------|           |----------------|
 | +effect_on_view |           | +score / heal  |
 +-----------------+           +----------------+
+```
 
 # Analyse des performances : chargement de niveau et `on_update`
 

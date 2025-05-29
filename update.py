@@ -81,6 +81,7 @@ def on_update(gameview: "GameView", delta_time: float) -> None:
                     gameview.current_lives = gameview.player.lives
                     gameview.setup(gameview.next_map)
                 except :
+                    print("THANK YOU FOR PLAYING OUR GAME.")
                     arcade.exit()
 
         #check for game over
