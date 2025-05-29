@@ -54,11 +54,11 @@ class Blob(Entity):
         else:
             # Check if the blob is about to step off a platform (no ground below)
             ground_left = any(
-                wall.collides_with_point((left_hitbox, self.bottom - 1))
+                wall.collides_with_point((left_hitbox, self.bottom - 16))
                 for wall in self.game.wall_list
             )
             ground_right = any(
-                wall.collides_with_point((right_hitbox, self.bottom - 1))
+                wall.collides_with_point((right_hitbox, self.bottom - 16))
                 for wall in self.game.wall_list
             )
 

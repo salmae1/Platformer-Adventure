@@ -1,51 +1,66 @@
-width: 24
-height: 8
-next-map : map2.txt
+width: 62
+height: 12
+next-map: map2.txt
 switches:
   - x: 0
-    y: 7
-    # this switch is off by default (no 'state')
-    # it opens the gate at position (6, 1), then disables itself
-    # (that means we won't be able to switch it back off, so nothing to do there)
+    y: 0
     switch_on:
       - action: open-gate
-        x: 6
-        y: 1
+        x: 3
+        y: 3
       - action: disable
-  - x: 8
-    y: 6
-    state: on # this switch is on by default
-    # when we turn it off, we open access to the coin,
-    # but we close access to the exit
+  - x: 0
+    y: 10
+    switch_on:
+      - action: open-gate
+        x: 10
+        y: 8
+      - action: disable
+  - x: 14
+    y: 9
+    state: on
     switch_off:
       - action: open-gate
-        x: 14
-        y: 2
+        x: 24
+        y: 6
       - action: close-gate
-        x: 18
-        y: 5
-    # when we turn it back on, we do the opposite
+        x: 36
+        y: 4
     switch_on:
       - action: close-gate
-        x: 14
-        y: 2
+        x: 24
+        y: 6
       - action: open-gate
-        x: 18
-        y: 5
+        x: 36
+        y: 4
+  - x: 38
+    y: 3
+    switch_on:
+      - action: open-gate
+        x: 10
+        y: 8
+      - action: disable
 gates:
-  - x: 18
-    y: 5
-    state: open # this gate is open when the game starts
-  # the other gates start closed
+  - x: 10
+    y: 8
+  - x: 24
+    y: 6
+  - x: 36
+    y: 4
+    state: open
 ---
-^                 x
---      ^  E   G  x
-    p x--££---→→→ | o
-   ---x        v  ===
- o    x   -----   =
---- * x   x   |  x=
- S         o   x x=  
-======£££=============
+      p                            o   
+^                 xxxxx          xxxxxxxxxxxx                
+--       *         x G     →→     x   x   G x     ←--     --
+  x  S     p        x               x   x     x
+  x----→→       xxxxxxx        ←---  x   x     x      xxxxxx
+  x         G           xxxxx      x   x     x      x G  x
+              x     *   x   x      x *                   x
+  xxxxxx      x         x       p  x   x     x      x    x
+            xxxxxxxxxxx   xxxxxxx    xxxxxxx   E   xxxxx    
+=============================================================
+= | =========================================================
+= | ============================£££££========================
 ---
 
 

@@ -53,6 +53,7 @@ class GameView(arcade.View):
         width, height, map_data, next_map, switches, gates = self.map_loader.read_map()
         # Set the next map
         self.next_map = next_map
+        print(f"Next map: {self.next_map}")
         #set camera bounds 
         self.camera_bounds = arcade.LRBT(
         WINDOW_WIDTH / 2.0,

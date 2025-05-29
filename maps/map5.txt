@@ -1,0 +1,46 @@
+width: 32
+height: 10
+switches:
+  - x: 3
+    y: 8
+    switch_on:
+      - action: open-gate
+        x: 8
+        y: 6
+      - action: disable
+  - x: 17
+    y: 5
+    state: on
+    switch_off:
+      - action: open-gate
+        x: 26
+        y: 4
+      - action: close-gate
+        x: 13
+        y: 6
+    switch_on:
+      - action: close-gate
+        x: 26
+        y: 4
+      - action: open-gate
+        x: 13
+        y: 6
+gates:
+  - x: 8
+    y: 6
+  - x: 13
+    y: 6
+    state: open
+  - x: 26
+    y: 4
+---
+    ^            xxxxxx       xxxxxx
+ -- x     *       x  G     ←- x    x
+    x     p       x             x  x
+    x----->       x     G   *   x  x
+    x             xxxxxx     E  x  x
+S   |      ↑               xxxxx   x
+==  | ==============================
+==  | ==============================
+==  | ============£££££=============
+---
