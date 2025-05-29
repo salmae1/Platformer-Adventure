@@ -12,7 +12,7 @@ Vous incarnez un personnage qui doit atteindre la sortie de chaque niveau (le pa
 
 - Utilisez les **leviers** pour ouvrir ou fermer des **portes**
 - Évitez les **blobs**, les **chauves-souris** et les **fantômes**
-- Ramassez des **pommes** pour devenir temporairement invincible 🍎
+- Ramassez des **pommes** pour devenir temporairement invincible 
 - Utilisez votre **épée** ou **arc/flèches** pour combattre
 - Et surtout... **survivez** 
 
@@ -22,8 +22,8 @@ Vous incarnez un personnage qui doit atteindre la sortie de chaque niveau (le pa
 
 | Action              | Touche / Souris         |
 |---------------------|--------------------------|
-| Aller à droite      | ➡️ `→`                   |
-| Aller à gauche      | ⬅️ `←`                   |
+| Aller à droite      | `→`                      |
+| Aller à gauche      |  `←`                     |
 | Sauter              | `↑`                      |
 | Changer d’arme      | Clic droit               |
 | Attaquer            | Clic gauche              |

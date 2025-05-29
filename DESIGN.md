@@ -166,8 +166,6 @@
 
 
 
-🔁 Interactions entre Classes, Méthodes et Modules
-
 ## Vue centrale : `GameView`
   - Le `Player` (mouvement, entrées clavier/souris)
   - Les entités `Entity` (`Blob`, `Bat`, `Ghost`) via `entity_list`
@@ -255,9 +253,7 @@
 
 
 
-
-
-  ## Diagramme de structure
+## Diagramme de structure
 
                             +-----------------+
                             |    Entity       |◄────────┐
