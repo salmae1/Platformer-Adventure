@@ -62,3 +62,4 @@ Pas d'avancements
 * [x] Ajouts extensions                                                4
 ### Semaine 14
 * [x] Derniers tests et optimisations                                  12
+* [x] Performances et finition du fichir DESIGN et README              3

@@ -48,7 +48,10 @@ class MapLoader:
         width : int = config.get("width",0)
         height : int = config.get("height",0)
         next_map : str = config.get("next-map"," ")
-        next_map = "maps/" + next_map
+        if next_map:
+            next_map = str("maps/" + next_map)
+        else:
+            next_map = ""
         switches_ = config.get("switches", [])
         gates = config.get("gates", [])
 
