@@ -13,7 +13,7 @@ Format :
 * [x] Découverte d'Arcade                                              3
 * [x] Meilleure gestion du clavier                                     0.5
 * [x] Meilleure gestion de la caméra                                   2
-* [ ] `README.md` à jour, expliquant comment jouer                    ??
+* [x] `README.md` à jour, expliquant comment jouer                     0
 
 
 ### Semaine 2
