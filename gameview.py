@@ -237,7 +237,7 @@ class GameView(arcade.View):
         """Called when the user presses a key on the keyboard."""
         if key == arcade.key.SPACE:
             #reset the game
-            gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav.", streaming = False)
+            gameover_sound = arcade.load_sound(":resources:sounds/gameover1.wav", streaming = False)
             arcade.play_sound(gameover_sound,loop=False)
             self.score = 0
             self.setup("maps/map1.txt")

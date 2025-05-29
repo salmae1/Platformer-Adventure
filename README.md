@@ -12,7 +12,7 @@ Vous incarnez un personnage qui doit atteindre la sortie de chaque niveau (le pa
 
 - Utilisez les **leviers** pour ouvrir ou fermer des **portes**
 - Évitez les **blobs**, les **chauves-souris** et les **fantômes**
-- Ramassez des **pommes** pour devenir temporairement invincible 
+- Ramassez des **pommes** pour devenir temporairement invincible contre les monstres
 - Utilisez votre **épée** ou **arc/flèches** pour combattre
 - Et surtout... **survivez** 
 
